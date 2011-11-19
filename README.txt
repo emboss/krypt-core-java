@@ -1,15 +1,12 @@
-== asn1pull-java
+== krypt-core-jruby
 
-Features an ASN.1 pull parser with streaming support. 
+The Java implementation of krypt-core used for JRuby.
 
 == Requirements
 
 Java SE 6 or higher.
  
-=== Note 
-
-This software is still in its alpha phase.
 
 Copyright (c) 2011
-* {Martin Bosslet}[https://github.com/emboss]
-
+Hiroshi Nakamura <nahi@ruby-lang.org>
+Martin Bosslet <Martin.Bosslet@googlemail.com>
