@@ -1,7 +1,7 @@
 require 'java'
-$CLASSPATH << File.expand_path('../dist/asn1pull-java.jar', File.dirname(__FILE__))
-java_import 'org.jruby.ext.krypt.asn1.ParserFactory'
-java_import 'org.jruby.ext.krypt.asn1.parser.PullHeaderParser'
+$CLASSPATH << File.expand_path('../../lib/jkrypt.jar', File.dirname(__FILE__))
+java_import 'impl.krypt.asn1.ParserFactory'
+java_import 'impl.krypt.asn1.parser.PullHeaderParser'
 
 describe "ParserFactory" do 
   it "can be instanciated" do 
