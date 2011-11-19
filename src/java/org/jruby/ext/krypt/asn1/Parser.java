@@ -75,5 +75,4 @@ public class Parser extends RubyObject {
         return new Header(runtime, phClass, parser.next(in));
     }
     
-    
 }
