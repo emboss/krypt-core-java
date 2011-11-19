@@ -27,53 +27,68 @@
 * the provisions above, a recipient may use your version of this file under
 * the terms of any one of the CPL, the GPL or the LGPL.
  */
-package org.jruby.ext.krypt.asn1;
+package impl.krypt.asn1.encoder;
 
-import impl.krypt.asn1.ParserFactory;
-import java.io.InputStream;
-import org.jruby.Ruby;
-import org.jruby.RubyClass;
-import org.jruby.RubyModule;
-import org.jruby.RubyObject;
-import org.jruby.anno.JRubyMethod;
-import org.jruby.runtime.ObjectAllocator;
-import org.jruby.runtime.builtin.IRubyObject;
-import org.jruby.util.IOInputStream;
+import impl.krypt.asn1.GenericAsn1;
+import impl.krypt.asn1.GenericAsn1.Length;
+import impl.krypt.asn1.GenericAsn1.Tag;
+import impl.krypt.asn1.Header;
+import impl.krypt.asn1.Primitive;
+import impl.krypt.asn1.TagClass;
+
 
 /**
  * 
  * @author <a href="mailto:Martin.Bosslet@googlemail.com">Martin Bosslet</a>
  */
-public class Parser extends RubyObject {
+public class PrimitiveValue extends Primitive {
     
-    private static ObjectAllocator PARSER_ALLOCATOR = new ObjectAllocator() {
-        public IRubyObject allocate(Ruby runtime, RubyClass type) {
-            return new Parser(runtime, type);
+    private int tag;
+    private TagClass tc;
+    
+    private Header header;
+
+    public PrimitiveValue(int tag, TagClass tc, byte[] value) {
+        super(value);
+        if (tc == null) throw new NullPointerException();
+        if (tag > 30 && tc == TagClass.UNIVERSAL)
+            throw new IllegalArgumentException("UNIVERSAL tags must be <= 30");
+        this.tag = tag;
+        this.tc = tc;
+    }
+    
+    public PrimitiveValue(int tag, byte[] value) {
+        this(tag, TagClass.UNIVERSAL, value);
+    }
+
+    @Override
+    public Header getHeader() {
+        if (header == null) {
+            header = computeHeader();
         }
-    };
-    
-    public static void createParser(Ruby runtime, RubyModule mAsn1) {
-        mAsn1.defineClassUnder("Parser", runtime.getObject(), PARSER_ALLOCATOR)
-             .defineAnnotatedMethods(Parser.class);
+        return header;
     }
     
-    private final impl.krypt.asn1.Parser parser;
+    private Header computeHeader() {
+        Tag t = new Tag(tag, tc, false);
+        byte[] value = getValue();
+        int len = value == null ? 0 : value.length;
+        Length l = new Length(len, false);
+        return GenericAsn1.headerFor(t, l);
+    }
     
-    public Parser(Ruby runtime, RubyClass type) {
-        super(runtime, type);
+    public void setTagAndClass(int tag, TagClass tc) {
+        if (tc == null) throw new NullPointerException();
         
-        this.parser = new ParserFactory().newHeaderParser();
+        this.tag = tag;
+        this.tc = tc;
+        this.header = null; //needs to be recomputed
     }
     
-    @JRubyMethod()
-    public IRubyObject next(IRubyObject io) {
-        InputStream in = new IOInputStream(io);
-        Ruby runtime = getRuntime();
-        RubyClass phClass = runtime.getModule("Krypt")
-                                   .getRuntime().getModule("Asn1")
-                                   .getClass("ParsedHeader");
-        return new Header(runtime, phClass, parser.next(in));
+    @Override
+    public void setValue(byte[] value) {
+        super.setValue(value);
+        this.header = null; //needs to be recomputed
     }
-    
     
 }

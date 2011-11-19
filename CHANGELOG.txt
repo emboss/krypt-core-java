@@ -1,0 +1,40 @@
+=== 0.1.0 / 2011-11-20 [emboss]
+* Add Rakefile and build.xml
+
+=== 0.1.0 / 2011-11-19 [emboss]
+* Expose Parser interface in Ruby
+
+=== 0.1.0 / 2011-11-04 [emboss]
+* Enable streaming encoding
+* Allow streaming reading of chunked values, omitting intermediate headers.
+
+=== 0.1.0 / 2011-11-02 [emboss]
+* Add streaming support for infinite length values.
+* Add classes to support encoding ASN.1 values from scratch.
+* Add tests.
+ 
+=== 0.1.0 / 2011-10-30 [emboss]
+* Make Parser stateless and reusable.
+* Support streaming for definite length values.
+
+=== 0.1.0 / 2011-10-30 [emboss]
+* Restrict maximum length of a definite value to Integer.MAX_VALUE, since
+the size of a byte array is also bounded by this.
+
+=== 0.1.0 / 2011-10-30 [emboss]
+* Added support for complex tags.
+
+=== 0.1.0 / 2011-10-29 [emboss]
+* Improved tests.
+
+=== 0.1.0 / 2011-10-29 [emboss]
+* Minor improvements.
+
+=== 0.1.0 / 2011-10-29 [emboss]
+* Made tests green.
+
+=== 0.1.0 / 2011-10-29 [emboss]
+* First steps towards working implementation.
+
+=== 0.1.0 / 2011-10-22 [emboss]
+* Birth

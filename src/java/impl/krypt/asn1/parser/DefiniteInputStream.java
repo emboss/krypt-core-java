@@ -27,53 +27,63 @@
 * the provisions above, a recipient may use your version of this file under
 * the terms of any one of the CPL, the GPL or the LGPL.
  */
-package org.jruby.ext.krypt.asn1;
+package impl.krypt.asn1.parser;
 
-import impl.krypt.asn1.ParserFactory;
+import impl.krypt.asn1.ParseException;
+import java.io.FilterInputStream;
+import java.io.IOException;
 import java.io.InputStream;
-import org.jruby.Ruby;
-import org.jruby.RubyClass;
-import org.jruby.RubyModule;
-import org.jruby.RubyObject;
-import org.jruby.anno.JRubyMethod;
-import org.jruby.runtime.ObjectAllocator;
-import org.jruby.runtime.builtin.IRubyObject;
-import org.jruby.util.IOInputStream;
+
 
 /**
  * 
  * @author <a href="mailto:Martin.Bosslet@googlemail.com">Martin Bosslet</a>
  */
-public class Parser extends RubyObject {
+class DefiniteInputStream extends FilterInputStream {
+
+    private int read = 0;
+    private final int length;
     
-    private static ObjectAllocator PARSER_ALLOCATOR = new ObjectAllocator() {
-        public IRubyObject allocate(Ruby runtime, RubyClass type) {
-            return new Parser(runtime, type);
-        }
-    };
-    
-    public static void createParser(Ruby runtime, RubyModule mAsn1) {
-        mAsn1.defineClassUnder("Parser", runtime.getObject(), PARSER_ALLOCATOR)
-             .defineAnnotatedMethods(Parser.class);
+    DefiniteInputStream(InputStream in, int length) {
+        super(in);
+        if (length < 0) throw new IllegalArgumentException("Length must be positive");
+        this.length = length;
+    }
+
+    @Override
+    public int read() throws IOException {
+        if (read == length)
+            return -1;
+        int b = super.read();
+        read++;
+        return b;
+    }
+
+    @Override
+    public void close() throws IOException {
+        //do nothing
     }
     
-    private final impl.krypt.asn1.Parser parser;
     
-    public Parser(Ruby runtime, RubyClass type) {
-        super(runtime, type);
+
+    @Override
+    public int read(byte[] b, int off, int len) throws IOException {
+        if (read == length)
+            return -1;
         
-        this.parser = new ParserFactory().newHeaderParser();
+        int toRead, actuallyRead;
+        
+        if (length - len < read)
+            toRead = length - read;
+        else
+            toRead = len;
+        
+        actuallyRead = super.read(b, off, toRead);
+        if (actuallyRead == -1)
+            throw new ParseException("Premature end of value detected.");
+        
+        read += actuallyRead;
+        return actuallyRead;
     }
-    
-    @JRubyMethod()
-    public IRubyObject next(IRubyObject io) {
-        InputStream in = new IOInputStream(io);
-        Ruby runtime = getRuntime();
-        RubyClass phClass = runtime.getModule("Krypt")
-                                   .getRuntime().getModule("Asn1")
-                                   .getClass("ParsedHeader");
-        return new Header(runtime, phClass, parser.next(in));
-    }
-    
-    
+
 }

@@ -27,53 +27,35 @@
 * the provisions above, a recipient may use your version of this file under
 * the terms of any one of the CPL, the GPL or the LGPL.
  */
-package org.jruby.ext.krypt.asn1;
+package org.jruby.ext.krypt;
 
-import impl.krypt.asn1.ParserFactory;
-import java.io.InputStream;
 import org.jruby.Ruby;
 import org.jruby.RubyClass;
 import org.jruby.RubyModule;
-import org.jruby.RubyObject;
-import org.jruby.anno.JRubyMethod;
+import org.jruby.ext.krypt.asn1.Parser;
 import org.jruby.runtime.ObjectAllocator;
-import org.jruby.runtime.builtin.IRubyObject;
-import org.jruby.util.IOInputStream;
 
 /**
  * 
  * @author <a href="mailto:Martin.Bosslet@googlemail.com">Martin Bosslet</a>
  */
-public class Parser extends RubyObject {
+public class KryptService {
     
-    private static ObjectAllocator PARSER_ALLOCATOR = new ObjectAllocator() {
-        public IRubyObject allocate(Ruby runtime, RubyClass type) {
-            return new Parser(runtime, type);
-        }
-    };
-    
-    public static void createParser(Ruby runtime, RubyModule mAsn1) {
-        mAsn1.defineClassUnder("Parser", runtime.getObject(), PARSER_ALLOCATOR)
-             .defineAnnotatedMethods(Parser.class);
+    public static void create(Ruby runtime) {
+        RubyModule krypt = runtime.getOrCreateModule("Krypt");
+        RubyClass standardError = runtime.getClass("StandardError");
+        RubyClass kryptError = krypt.defineClassUnder("KryptError", standardError, standardError.getAllocator());
+        createAsn1(runtime, krypt, kryptError);
     }
     
-    private final impl.krypt.asn1.Parser parser;
-    
-    public Parser(Ruby runtime, RubyClass type) {
-        super(runtime, type);
+    private static void createAsn1(Ruby runtime, RubyModule krypt, RubyClass kryptError) {
+        RubyModule mAsn1 = runtime.defineModuleUnder("Asn1", krypt);
         
-        this.parser = new ParserFactory().newHeaderParser();
+        RubyClass asn1Error = mAsn1.defineClassUnder("Asn1Error", kryptError, kryptError.getAllocator());
+        mAsn1.defineClassUnder("ParseError", asn1Error, asn1Error.getAllocator());
+        mAsn1.defineClassUnder("SerializeError", asn1Error, asn1Error.getAllocator());
+        
+        Parser.createParser(runtime, mAsn1);
     }
-    
-    @JRubyMethod()
-    public IRubyObject next(IRubyObject io) {
-        InputStream in = new IOInputStream(io);
-        Ruby runtime = getRuntime();
-        RubyClass phClass = runtime.getModule("Krypt")
-                                   .getRuntime().getModule("Asn1")
-                                   .getClass("ParsedHeader");
-        return new Header(runtime, phClass, parser.next(in));
-    }
-    
     
 }

@@ -1,4 +1,10 @@
+lib/jkrypt.jar
 nbproject/private
+nbbuild.xml
+manifest.mf
+Manifest.txt
+pkg
+build.properties
 build_lib/jruby.jar
 build
 dist

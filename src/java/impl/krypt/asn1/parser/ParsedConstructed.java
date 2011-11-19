@@ -27,53 +27,32 @@
 * the provisions above, a recipient may use your version of this file under
 * the terms of any one of the CPL, the GPL or the LGPL.
  */
-package org.jruby.ext.krypt.asn1;
+package impl.krypt.asn1.parser;
 
-import impl.krypt.asn1.ParserFactory;
-import java.io.InputStream;
-import org.jruby.Ruby;
-import org.jruby.RubyClass;
-import org.jruby.RubyModule;
-import org.jruby.RubyObject;
-import org.jruby.anno.JRubyMethod;
-import org.jruby.runtime.ObjectAllocator;
-import org.jruby.runtime.builtin.IRubyObject;
-import org.jruby.util.IOInputStream;
+import java.util.List;
+import impl.krypt.asn1.Asn1;
+import impl.krypt.asn1.Constructed;
+import impl.krypt.asn1.Header;
+
 
 /**
  * 
  * @author <a href="mailto:Martin.Bosslet@googlemail.com">Martin Bosslet</a>
  */
-public class Parser extends RubyObject {
+class ParsedConstructed extends Constructed<List<Asn1>> {
     
-    private static ObjectAllocator PARSER_ALLOCATOR = new ObjectAllocator() {
-        public IRubyObject allocate(Ruby runtime, RubyClass type) {
-            return new Parser(runtime, type);
-        }
-    };
+    private final Header header;
     
-    public static void createParser(Ruby runtime, RubyModule mAsn1) {
-        mAsn1.defineClassUnder("Parser", runtime.getObject(), PARSER_ALLOCATOR)
-             .defineAnnotatedMethods(Parser.class);
+    protected ParsedConstructed(Header header, List<Asn1> contents) {
+	super(contents);
+        if (header == null) throw new NullPointerException();
+	
+        this.header = header;
     }
     
-    private final impl.krypt.asn1.Parser parser;
-    
-    public Parser(Ruby runtime, RubyClass type) {
-        super(runtime, type);
-        
-        this.parser = new ParserFactory().newHeaderParser();
+    @Override
+    public Header getHeader() {
+        return header;
     }
-    
-    @JRubyMethod()
-    public IRubyObject next(IRubyObject io) {
-        InputStream in = new IOInputStream(io);
-        Ruby runtime = getRuntime();
-        RubyClass phClass = runtime.getModule("Krypt")
-                                   .getRuntime().getModule("Asn1")
-                                   .getClass("ParsedHeader");
-        return new Header(runtime, phClass, parser.next(in));
-    }
-    
-    
+
 }

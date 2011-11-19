@@ -27,53 +27,41 @@
 * the provisions above, a recipient may use your version of this file under
 * the terms of any one of the CPL, the GPL or the LGPL.
  */
-package org.jruby.ext.krypt.asn1;
+package impl.krypt.asn1;
 
-import impl.krypt.asn1.ParserFactory;
-import java.io.InputStream;
-import org.jruby.Ruby;
-import org.jruby.RubyClass;
-import org.jruby.RubyModule;
-import org.jruby.RubyObject;
-import org.jruby.anno.JRubyMethod;
-import org.jruby.runtime.ObjectAllocator;
-import org.jruby.runtime.builtin.IRubyObject;
-import org.jruby.util.IOInputStream;
 
 /**
  * 
  * @author <a href="mailto:Martin.Bosslet@googlemail.com">Martin Bosslet</a>
  */
-public class Parser extends RubyObject {
+public class Tags {
     
-    private static ObjectAllocator PARSER_ALLOCATOR = new ObjectAllocator() {
-        public IRubyObject allocate(Ruby runtime, RubyClass type) {
-            return new Parser(runtime, type);
-        }
-    };
+    public static final byte END_OF_CONTENTS   = (byte)0x00;
+    public static final byte BOOLEAN           = (byte)0x01;
+    public static final byte INTEGER           = (byte)0x02;
+    public static final byte BIT_STRING        = (byte)0x03;
+    public static final byte OCTET_STRING      = (byte)0x04;
+    public static final byte NULL              = (byte)0x05;
+    public static final byte OBJECT_IDENTIFIER = (byte)0x06;
     
-    public static void createParser(Ruby runtime, RubyModule mAsn1) {
-        mAsn1.defineClassUnder("Parser", runtime.getObject(), PARSER_ALLOCATOR)
-             .defineAnnotatedMethods(Parser.class);
-    }
+    public static final byte ENUMERATED        = (byte)0xa0;
     
-    private final impl.krypt.asn1.Parser parser;
+    public static final byte UTF8_STRING       = (byte)0xc0;
     
-    public Parser(Ruby runtime, RubyClass type) {
-        super(runtime, type);
-        
-        this.parser = new ParserFactory().newHeaderParser();
-    }
+    public static final byte SEQUENCE          = (byte)0x10;
+    public static final byte SET               = (byte)0x11;
+    public static final byte NUMERIC_STRING    = (byte)0x12;
+    public static final byte PRINTABLE_STRING  = (byte)0x13;
+    public static final byte T61_STRING        = (byte)0x14;
+    public static final byte VIDEOTEX_STRING   = (byte)0x15;
+    public static final byte IA5_STRING        = (byte)0x16;
+    public static final byte UTC_TIME          = (byte)0x17;
+    public static final byte GENERALIZED_TIME  = (byte)0x18;
+    public static final byte GRAPHIC_STRING    = (byte)0x19;
+    public static final byte ISO64_STRING      = (byte)0x1a;
+    public static final byte GENERAL_STRING    = (byte)0x1b;
+    public static final byte UNIVERSAL_STRING  = (byte)0x1c;
     
-    @JRubyMethod()
-    public IRubyObject next(IRubyObject io) {
-        InputStream in = new IOInputStream(io);
-        Ruby runtime = getRuntime();
-        RubyClass phClass = runtime.getModule("Krypt")
-                                   .getRuntime().getModule("Asn1")
-                                   .getClass("ParsedHeader");
-        return new Header(runtime, phClass, parser.next(in));
-    }
-    
-    
+    public static final byte BMP_STRING        = (byte)0x1e;
+
 }
