@@ -1,0 +1,1 @@
+-g -target 1.5 -source 1.5 -Xlint:unchecked -Xlint:deprecation -d pkg/classes
