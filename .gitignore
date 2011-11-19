@@ -1,0 +1,11 @@
+nbproject/private
+build_lib/jruby.jar
+build
+dist
+doc
+tmp
+.classpath
+.project
+*.class
+*.swp
+
