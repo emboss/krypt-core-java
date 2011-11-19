@@ -27,45 +27,63 @@
 * the provisions above, a recipient may use your version of this file under
 * the terms of any one of the CPL, the GPL or the LGPL.
  */
-package org.jruby.ext.krypt.asn1.resources;
+package org.jruby.ext.krypt.asn1.parser;
 
-import java.io.ByteArrayOutputStream;
+import org.jruby.ext.krypt.asn1.ParseException;
+import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
+
 
 /**
  * 
  * @author <a href="mailto:Martin.Bosslet@googlemail.com">Martin Bosslet</a>
  */
-public class Resources {
+class DefiniteInputStream extends FilterInputStream {
+
+    private int read = 0;
+    private final int length;
     
-    public static InputStream certificate() {
-        return Resources.class.getResourceAsStream("certificate.cer");
+    DefiniteInputStream(InputStream in, int length) {
+        super(in);
+        if (length < 0) throw new IllegalArgumentException("Length must be positive");
+        this.length = length;
+    }
+
+    @Override
+    public int read() throws IOException {
+        if (read == length)
+            return -1;
+        int b = super.read();
+        read++;
+        return b;
+    }
+
+    @Override
+    public void close() throws IOException {
+        //do nothing
     }
     
-    public static byte[] read(InputStream in) {
-        try {
-            byte[] buf = new byte[8192];
-            int read;
-            ByteArrayOutputStream baos = new ByteArrayOutputStream();
-
-            while ((read = in.read(buf)) != -1) {
-                baos.write(buf, 0, read);
-            }
-
-            return baos.toByteArray();
-        }
-        catch (IOException ex) {
-            throw new RuntimeException(ex);
-        }
-        finally {
-            try {
-                in.close();
-            }
-            catch (IOException ex) {
-                //silent
-            }
-        }
-    }
     
+
+    @Override
+    public int read(byte[] b, int off, int len) throws IOException {
+        if (read == length)
+            return -1;
+        
+        int toRead, actuallyRead;
+        
+        if (length - len < read)
+            toRead = length - read;
+        else
+            toRead = len;
+        
+        actuallyRead = super.read(b, off, toRead);
+        if (actuallyRead == -1)
+            throw new ParseException("Premature end of value detected.");
+        
+        read += actuallyRead;
+        return actuallyRead;
+    }
+
 }

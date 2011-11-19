@@ -27,45 +27,52 @@
 * the provisions above, a recipient may use your version of this file under
 * the terms of any one of the CPL, the GPL or the LGPL.
  */
-package org.jruby.ext.krypt.asn1.resources;
+package org.jruby.ext.krypt.asn1;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
 
 /**
  * 
  * @author <a href="mailto:Martin.Bosslet@googlemail.com">Martin Bosslet</a>
  */
-public class Resources {
+public enum TagClass {
     
-    public static InputStream certificate() {
-        return Resources.class.getResourceAsStream("certificate.cer");
+    UNIVERSAL       (Masks.UNIVERSAL_MASK),
+    APPLICATION     (Masks.APPLICATION_MASK),
+    CONTEXT_SPECIFIC(Masks.CONTEXT_SPECIFIC_MASK),
+    PRIVATE         (Masks.PRIVATE_MASK);
+    
+    TagClass(byte mask) {
+        this.mask = mask;
     }
     
-    public static byte[] read(InputStream in) {
-        try {
-            byte[] buf = new byte[8192];
-            int read;
-            ByteArrayOutputStream baos = new ByteArrayOutputStream();
-
-            while ((read = in.read(buf)) != -1) {
-                baos.write(buf, 0, read);
-            }
-
-            return baos.toByteArray();
-        }
-        catch (IOException ex) {
-            throw new RuntimeException(ex);
-        }
-        finally {
-            try {
-                in.close();
-            }
-            catch (IOException ex) {
-                //silent
-            }
+    
+    
+    private final byte mask;
+    
+    public byte getMask() {
+        return mask;
+    }
+    
+    public static TagClass of(byte b) {
+        switch (b) {
+            case Masks.UNIVERSAL_MASK:
+                return UNIVERSAL;
+            case Masks.APPLICATION_MASK:
+                return APPLICATION;
+            case Masks.CONTEXT_SPECIFIC_MASK:
+                return CONTEXT_SPECIFIC;
+            case Masks.PRIVATE_MASK:
+                return PRIVATE;
+            default:
+                throw new IllegalArgumentException("Unknown tag class: " + b);
         }
     }
     
+    private static class Masks {
+        static final byte UNIVERSAL_MASK        = (byte)0x00;
+        static final byte APPLICATION_MASK      = (byte)0x40;
+        static final byte CONTEXT_SPECIFIC_MASK = (byte)0x80;
+        static final byte PRIVATE_MASK          = (byte)0xc0;
+    }
+
 }

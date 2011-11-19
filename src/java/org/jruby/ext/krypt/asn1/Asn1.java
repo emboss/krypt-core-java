@@ -27,45 +27,15 @@
 * the provisions above, a recipient may use your version of this file under
 * the terms of any one of the CPL, the GPL or the LGPL.
  */
-package org.jruby.ext.krypt.asn1.resources;
+package org.jruby.ext.krypt.asn1;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
 
 /**
  * 
  * @author <a href="mailto:Martin.Bosslet@googlemail.com">Martin Bosslet</a>
  */
-public class Resources {
-    
-    public static InputStream certificate() {
-        return Resources.class.getResourceAsStream("certificate.cer");
-    }
-    
-    public static byte[] read(InputStream in) {
-        try {
-            byte[] buf = new byte[8192];
-            int read;
-            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+public interface Asn1 {
+   
+    public Header getHeader();
 
-            while ((read = in.read(buf)) != -1) {
-                baos.write(buf, 0, read);
-            }
-
-            return baos.toByteArray();
-        }
-        catch (IOException ex) {
-            throw new RuntimeException(ex);
-        }
-        finally {
-            try {
-                in.close();
-            }
-            catch (IOException ex) {
-                //silent
-            }
-        }
-    }
-    
 }

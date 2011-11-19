@@ -27,51 +27,68 @@
 * the provisions above, a recipient may use your version of this file under
 * the terms of any one of the CPL, the GPL or the LGPL.
  */
-package org.jruby.ext.krypt.asn1;
+package org.jruby.ext.krypt.asn1.encode;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
+import org.jruby.ext.krypt.asn1.GenericAsn1;
+import org.jruby.ext.krypt.asn1.GenericAsn1.Length;
+import org.jruby.ext.krypt.asn1.GenericAsn1.Tag;
+import org.jruby.ext.krypt.asn1.Header;
+import org.jruby.ext.krypt.asn1.Primitive;
+import org.jruby.ext.krypt.asn1.TagClass;
+
 
 /**
  * 
  * @author <a href="mailto:Martin.Bosslet@googlemail.com">Martin Bosslet</a>
  */
-public class Utils {
+public class PrimitiveValue extends Primitive {
     
-    private Utils() {}
+    private int tag;
+    private TagClass tc;
     
-    public static byte[] consume(InputStream stream) {
-        
-        byte[] buf = new byte[8192];
-        int read = 0;
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        
-        try {
-            while ((read = stream.read(buf)) != -1) {
-                baos.write(buf, 0, read);
-            }
-        }
-        catch (IOException ex) {
-                throw new ParseException(ex);
-        }
-        
-        return baos.toByteArray();
+    private Header header;
+
+    public PrimitiveValue(int tag, TagClass tc, byte[] value) {
+        super(value);
+        if (tc == null) throw new NullPointerException();
+        if (tag > 30 && tc == TagClass.UNIVERSAL)
+            throw new IllegalArgumentException("UNIVERSAL tags must be <= 30");
+        this.tag = tag;
+        this.tc = tc;
     }
     
-    public static byte[] bytesOf(Integer... bytes) {
-        byte[] ret = new byte[bytes.length];
-        for (int i = 0; i < bytes.length; i++) {
-            ret[i] = bytes[i].byteValue();
+    public PrimitiveValue(int tag, byte[] value) {
+        this(tag, TagClass.UNIVERSAL, value);
+    }
+
+    @Override
+    public Header getHeader() {
+        if (header == null) {
+            header = computeHeader();
         }
-        return ret;
+        return header;
     }
     
-    public static byte[] byteTimes(int b, int times) {
-        byte[] ret = new byte[times];
-        for (int i = 0; i < times; i++) {
-            ret[i] = (byte)b;
-        }
-        return ret;
+    private Header computeHeader() {
+        Tag t = new Tag(tag, tc, false);
+        byte[] value = getValue();
+        int len = value == null ? 0 : value.length;
+        Length l = new Length(len, false);
+        return GenericAsn1.headerFor(t, l);
     }
+    
+    public void setTagAndClass(int tag, TagClass tc) {
+        if (tc == null) throw new NullPointerException();
+        
+        this.tag = tag;
+        this.tc = tc;
+        this.header = null; //needs to be recomputed
+    }
+    
+    @Override
+    public void setValue(byte[] value) {
+        super.setValue(value);
+        this.header = null; //needs to be recomputed
+    }
+    
 }

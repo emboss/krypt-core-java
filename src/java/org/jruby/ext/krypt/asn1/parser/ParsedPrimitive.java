@@ -27,45 +27,30 @@
 * the provisions above, a recipient may use your version of this file under
 * the terms of any one of the CPL, the GPL or the LGPL.
  */
-package org.jruby.ext.krypt.asn1.resources;
+package org.jruby.ext.krypt.asn1.parser;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
-import java.io.InputStream;
+import org.jruby.ext.krypt.asn1.Header;
+import org.jruby.ext.krypt.asn1.Primitive;
+
 
 /**
  * 
  * @author <a href="mailto:Martin.Bosslet@googlemail.com">Martin Bosslet</a>
  */
-public class Resources {
+class ParsedPrimitive extends Primitive {
     
-    public static InputStream certificate() {
-        return Resources.class.getResourceAsStream("certificate.cer");
+    private final Header header;
+    
+    public ParsedPrimitive(Header header, byte[] value) {
+        super(value);
+        if (header == null) throw new NullPointerException();
+        
+        this.header = header;
     }
     
-    public static byte[] read(InputStream in) {
-        try {
-            byte[] buf = new byte[8192];
-            int read;
-            ByteArrayOutputStream baos = new ByteArrayOutputStream();
-
-            while ((read = in.read(buf)) != -1) {
-                baos.write(buf, 0, read);
-            }
-
-            return baos.toByteArray();
-        }
-        catch (IOException ex) {
-            throw new RuntimeException(ex);
-        }
-        finally {
-            try {
-                in.close();
-            }
-            catch (IOException ex) {
-                //silent
-            }
-        }
+    @Override
+    public Header getHeader() {
+        return header;
     }
     
 }

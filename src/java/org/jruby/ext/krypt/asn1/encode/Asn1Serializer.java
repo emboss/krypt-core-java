@@ -27,44 +27,47 @@
 * the provisions above, a recipient may use your version of this file under
 * the terms of any one of the CPL, the GPL or the LGPL.
  */
-package org.jruby.ext.krypt.asn1.resources;
+package org.jruby.ext.krypt.asn1.encode;
 
-import java.io.ByteArrayOutputStream;
+import org.jruby.ext.krypt.asn1.SerializationException;
 import java.io.IOException;
-import java.io.InputStream;
+import java.io.OutputStream;
+import org.jruby.ext.krypt.asn1.Asn1;
+import org.jruby.ext.krypt.asn1.Constructed;
+import org.jruby.ext.krypt.asn1.Primitive;
+
 
 /**
  * 
  * @author <a href="mailto:Martin.Bosslet@googlemail.com">Martin Bosslet</a>
  */
-public class Resources {
+public class Asn1Serializer {
     
-    public static InputStream certificate() {
-        return Resources.class.getResourceAsStream("certificate.cer");
+    private Asn1Serializer() {}
+    
+    public static void serialize(Asn1 asn, OutputStream out) {
+        if (asn.getHeader().isConstructed()) 
+            serializeConstructed((Constructed<?>)asn, out);
+        else 
+            serializePrimitive((Primitive)asn, out);
     }
     
-    public static byte[] read(InputStream in) {
+    private static void serializeConstructed(Constructed<?> c, OutputStream out) {
+        c.getHeader().encodeTo(out);
+        for (Asn1 asn : c.getContent()) {
+            serialize(asn, out);
+        }
+    }
+    
+    private static void serializePrimitive(Primitive p, OutputStream out) {
         try {
-            byte[] buf = new byte[8192];
-            int read;
-            ByteArrayOutputStream baos = new ByteArrayOutputStream();
-
-            while ((read = in.read(buf)) != -1) {
-                baos.write(buf, 0, read);
-            }
-
-            return baos.toByteArray();
+            p.getHeader().encodeTo(out);
+            byte[] value = p.getValue();
+            if (value != null)
+                out.write(value);
         }
         catch (IOException ex) {
-            throw new RuntimeException(ex);
-        }
-        finally {
-            try {
-                in.close();
-            }
-            catch (IOException ex) {
-                //silent
-            }
+            throw new SerializationException(ex);
         }
     }
     

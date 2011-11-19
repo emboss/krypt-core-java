@@ -14,7 +14,7 @@
 * Copyright (C) 2011 
 * Hiroshi Nakamura <nahi@ruby-lang.org>
 * Martin Bosslet <Martin.Bosslet@googlemail.com>
-*
+*                     
 * Alternatively, the contents of this file may be used under the terms of
 * either of the GNU General Public License Version 2 or later (the "GPL"),
 * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
@@ -27,45 +27,17 @@
 * the provisions above, a recipient may use your version of this file under
 * the terms of any one of the CPL, the GPL or the LGPL.
  */
-package org.jruby.ext.krypt.asn1.resources;
+package org.jruby.ext.krypt.asn1;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
 import java.io.InputStream;
+
 
 /**
  * 
  * @author <a href="mailto:Martin.Bosslet@googlemail.com">Martin Bosslet</a>
  */
-public class Resources {
+public interface Parser {
     
-    public static InputStream certificate() {
-        return Resources.class.getResourceAsStream("certificate.cer");
-    }
-    
-    public static byte[] read(InputStream in) {
-        try {
-            byte[] buf = new byte[8192];
-            int read;
-            ByteArrayOutputStream baos = new ByteArrayOutputStream();
-
-            while ((read = in.read(buf)) != -1) {
-                baos.write(buf, 0, read);
-            }
-
-            return baos.toByteArray();
-        }
-        catch (IOException ex) {
-            throw new RuntimeException(ex);
-        }
-        finally {
-            try {
-                in.close();
-            }
-            catch (IOException ex) {
-                //silent
-            }
-        }
-    }
+    public ParsedHeader next(InputStream in);
     
 }
