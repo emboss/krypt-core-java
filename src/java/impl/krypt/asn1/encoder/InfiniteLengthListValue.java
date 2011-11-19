@@ -38,10 +38,10 @@ import impl.krypt.asn1.Asn1;
  * 
  * @author <a href="mailto:Martin.Bosslet@googlemail.com">Martin Bosslet</a>
  */
-public class InfiniteLengthListValue extends AbstractConstructed {
+public class InfiniteLengthListValue extends ConstructedList {
 
-    public InfiniteLengthListValue(int tag, List<Asn1> chunkedValue) {
-        super(tag, chunkedValue);
+    public InfiniteLengthListValue(int tag, List<Asn1> contents) {
+        super(tag, contents);
         setInfiniteLength(true);
     }
     

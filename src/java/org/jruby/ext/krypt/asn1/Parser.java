@@ -53,9 +53,8 @@ public class Parser extends RubyObject {
     };
     
     public static void createParser(Ruby runtime, RubyModule mAsn1) {
-        RubyClass cParserClass = mAsn1.fastGetClass("Class");
-        RubyClass cParser = mAsn1.defineClassUnder("Parser", cParserClass, PARSER_ALLOCATOR);
-        cParser.defineAnnotatedMethods(Parser.class);
+        mAsn1.defineClassUnder("Parser", runtime.getObject(), PARSER_ALLOCATOR)
+             .defineAnnotatedMethods(Parser.class);
     }
     
     private final impl.krypt.asn1.Parser parser;

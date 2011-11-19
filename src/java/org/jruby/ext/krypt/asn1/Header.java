@@ -53,9 +53,8 @@ import org.jruby.util.IOOutputStream;
 public class Header extends RubyObject {
     
     public static void createParser(Ruby runtime, RubyModule mAsn1) {
-        RubyClass cClass = mAsn1.fastGetClass("Class");
-        RubyClass cHeader = mAsn1.defineClassUnder("Header", cClass, ObjectAllocator.NOT_ALLOCATABLE_ALLOCATOR);
-        cHeader.defineAnnotatedMethods(Header.class);
+        mAsn1.defineClassUnder("Header", runtime.getObject(), ObjectAllocator.NOT_ALLOCATABLE_ALLOCATOR)
+             .defineAnnotatedMethods(Header.class);
     }
     
     private final ParsedHeader h;

@@ -39,7 +39,7 @@ import impl.krypt.asn1.Header;
  * 
  * @author <a href="mailto:Martin.Bosslet@googlemail.com">Martin Bosslet</a>
  */
-class ParsedConstructed extends Constructed {
+class ParsedConstructed extends Constructed<List<Asn1>> {
     
     private final Header header;
     

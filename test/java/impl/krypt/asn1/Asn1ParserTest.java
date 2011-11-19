@@ -29,12 +29,6 @@
  */
 package impl.krypt.asn1;
 
-import impl.krypt.asn1.Header;
-import impl.krypt.asn1.Tags;
-import impl.krypt.asn1.Constructed;
-import impl.krypt.asn1.ParserFactory;
-import impl.krypt.asn1.Asn1;
-import impl.krypt.asn1.TagClass;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import java.io.ByteArrayOutputStream;
@@ -60,7 +54,8 @@ public class Asn1ParserTest {
             Asn1 asn = p.parse(in);
             assertNotNull(asn);
             assertTrue(asn instanceof Constructed);
-            Constructed cons = (Constructed)asn;
+            @SuppressWarnings("unchecked")
+            Constructed<Iterable<Asn1>> cons = (Constructed<Iterable<Asn1>>)asn;
             Iterable<Asn1> contents = cons.getContent();
             assertNotNull(contents);
             assertTrue(contents.iterator().hasNext());

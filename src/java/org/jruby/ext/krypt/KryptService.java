@@ -33,6 +33,7 @@ import org.jruby.Ruby;
 import org.jruby.RubyClass;
 import org.jruby.RubyModule;
 import org.jruby.ext.krypt.asn1.Parser;
+import org.jruby.runtime.ObjectAllocator;
 
 /**
  * 
@@ -43,14 +44,14 @@ public class KryptService {
     public static void create(Ruby runtime) {
         RubyModule krypt = runtime.getOrCreateModule("Krypt");
         RubyClass standardError = runtime.getClass("StandardError");
-        krypt.defineClassUnder("KryptError", standardError, standardError.getAllocator());
-        createAsn1(runtime, krypt);
+        RubyClass kryptError = krypt.defineClassUnder("KryptError", standardError, standardError.getAllocator());
+        createAsn1(runtime, krypt, kryptError);
     }
     
-    private static void createAsn1(Ruby runtime, RubyModule krypt) {
+    private static void createAsn1(Ruby runtime, RubyModule krypt, RubyClass kryptError) {
         RubyModule mAsn1 = runtime.defineModuleUnder("Asn1", krypt);
         
-        RubyClass asn1Error = mAsn1.getClass("Asn1Error");
+        RubyClass asn1Error = mAsn1.defineClassUnder("Asn1Error", kryptError, kryptError.getAllocator());
         mAsn1.defineClassUnder("ParseError", asn1Error, asn1Error.getAllocator());
         mAsn1.defineClassUnder("SerializeError", asn1Error, asn1Error.getAllocator());
         
