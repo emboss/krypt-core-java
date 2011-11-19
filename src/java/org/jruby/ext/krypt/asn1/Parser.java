@@ -14,7 +14,7 @@
 * Copyright (C) 2011 
 * Hiroshi Nakamura <nahi@ruby-lang.org>
 * Martin Bosslet <Martin.Bosslet@googlemail.com>
-*                     
+*
 * Alternatively, the contents of this file may be used under the terms of
 * either of the GNU General Public License Version 2 or later (the "GPL"),
 * or the GNU Lesser General Public License Version 2.1 or later (the "LGPL"),
@@ -29,15 +29,52 @@
  */
 package org.jruby.ext.krypt.asn1;
 
+import impl.krypt.asn1.ParserFactory;
 import java.io.InputStream;
-
+import org.jruby.Ruby;
+import org.jruby.RubyClass;
+import org.jruby.RubyModule;
+import org.jruby.RubyObject;
+import org.jruby.anno.JRubyMethod;
+import org.jruby.runtime.ObjectAllocator;
+import org.jruby.runtime.builtin.IRubyObject;
+import org.jruby.util.IOInputStream;
 
 /**
  * 
  * @author <a href="mailto:Martin.Bosslet@googlemail.com">Martin Bosslet</a>
  */
-public interface Parser {
+public class Parser extends RubyObject {
     
-    public ParsedHeader next(InputStream in);
+    private static ObjectAllocator PARSER_ALLOCATOR = new ObjectAllocator() {
+        public IRubyObject allocate(Ruby runtime, RubyClass type) {
+            return new Parser(runtime, type);
+        }
+    };
+    
+    public static void createParser(Ruby runtime, RubyModule mAsn1) {
+        RubyClass cParserClass = mAsn1.fastGetClass("Class");
+        RubyClass cParser = mAsn1.defineClassUnder("Parser", cParserClass, PARSER_ALLOCATOR);
+        cParser.defineAnnotatedMethods(Parser.class);
+    }
+    
+    private final impl.krypt.asn1.Parser parser;
+    
+    public Parser(Ruby runtime, RubyClass type) {
+        super(runtime, type);
+        
+        this.parser = new ParserFactory().newHeaderParser();
+    }
+    
+    @JRubyMethod()
+    public IRubyObject next(IRubyObject io) {
+        InputStream in = new IOInputStream(io);
+        Ruby runtime = getRuntime();
+        RubyClass phClass = runtime.getModule("Krypt")
+                                   .getRuntime().getModule("Asn1")
+                                   .getClass("ParsedHeader");
+        return new Header(runtime, phClass, parser.next(in));
+    }
+    
     
 }

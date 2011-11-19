@@ -29,26 +29,125 @@
  */
 package org.jruby.ext.krypt.asn1;
 
-import java.io.OutputStream;
-
+import impl.krypt.asn1.ParsedHeader;
+import impl.krypt.asn1.TagClass;
+import java.io.InputStream;
+import org.jruby.Ruby;
+import org.jruby.RubyBoolean;
+import org.jruby.RubyClass;
+import org.jruby.RubyFixnum;
+import org.jruby.RubyIO;
+import org.jruby.RubyModule;
+import org.jruby.RubyObject;
+import org.jruby.RubySymbol;
+import org.jruby.anno.JRubyMethod;
+import org.jruby.runtime.ObjectAllocator;
+import org.jruby.runtime.builtin.IRubyObject;
+import org.jruby.util.ByteList;
+import org.jruby.util.IOOutputStream;
 
 /**
  * 
  * @author <a href="mailto:Martin.Bosslet@googlemail.com">Martin Bosslet</a>
  */
-public interface Header {
-
-    public static final byte CONSTRUCTED_MASK     = (byte)0x20;
-    public static final byte COMPLEX_TAG_MASK     = (byte)0x1f;
-    public static final byte INFINITE_LENGTH_MASK = (byte)0x80;
+public class Header extends RubyObject {
     
-    public int getTag();
-    public TagClass getTagClass();
-    public boolean isConstructed();
-    public boolean isInfiniteLength();
-    public int getLength();
-    public int getHeaderLength();
+    public static void createParser(Ruby runtime, RubyModule mAsn1) {
+        RubyClass cClass = mAsn1.fastGetClass("Class");
+        RubyClass cHeader = mAsn1.defineClassUnder("Header", cClass, ObjectAllocator.NOT_ALLOCATABLE_ALLOCATOR);
+        cHeader.defineAnnotatedMethods(Header.class);
+    }
     
-    public void encodeTo(OutputStream out);
+    private final ParsedHeader h;
     
+    private final IRubyObject tag;
+    private final IRubyObject tagClass;
+    private final IRubyObject isConstructed;
+    private final IRubyObject isInfLen;
+    private final IRubyObject len;
+    private final IRubyObject hlen;
+    
+    public Header(Ruby runtime, RubyClass type, impl.krypt.asn1.ParsedHeader h) {
+        super(runtime, type);
+        if (h == null) throw new NullPointerException();
+    
+        this.h = h;
+        
+        this.tag = RubyFixnum.newFixnum(runtime, h.getTag());
+        this.tagClass = tagClassFor(runtime, h.getTagClass());
+        this.isConstructed = RubyBoolean.newBoolean(runtime, h.isConstructed());
+        this.isInfLen = RubyBoolean.newBoolean(runtime, h.isInfiniteLength());
+        this.len = RubyFixnum.newFixnum(runtime, h.getLength());
+        this.hlen = RubyFixnum.newFixnum(runtime, h.getHeaderLength());
+    }
+    
+    private static IRubyObject tagClassFor(Ruby runtime, TagClass tc) {
+        switch(tc) {
+            case UNIVERSAL:
+                return RubySymbol.newSymbol(runtime, TagClass.UNIVERSAL.name());
+            case CONTEXT_SPECIFIC:
+                return RubySymbol.newSymbol(runtime, TagClass.CONTEXT_SPECIFIC.name());
+            case APPLICATION:
+                return RubySymbol.newSymbol(runtime, TagClass.APPLICATION.name());
+            case PRIVATE:
+                return RubySymbol.newSymbol(runtime, TagClass.PRIVATE.name());
+            default:
+                throw runtime.newRuntimeError("Unkown TagClass " + tc);
+        }
+    }
+    
+    @JRubyMethod
+    public IRubyObject tag() {
+        return tag;
+    }
+    
+    @JRubyMethod
+    public IRubyObject tag_class() {
+        return tagClass;
+    }
+    
+    @JRubyMethod(name="constructed?")
+    public IRubyObject is_constructed() {
+        return isConstructed;
+    }
+    
+    @JRubyMethod(name="infinite_len?")
+    public IRubyObject is_infinite_len() {
+        return isInfLen;
+    }
+    
+    @JRubyMethod(name={"size","length"})
+    public IRubyObject size() {
+        return len;
+    }
+    
+    @JRubyMethod(name={"header_size","header_length"})
+    public IRubyObject header_size() {
+        return hlen;
+    }
+    
+    @JRubyMethod
+    public IRubyObject encode_to(IRubyObject io) {
+        h.encodeTo(new IOOutputStream(io));
+        return this;
+    }
+    
+    @JRubyMethod
+    public IRubyObject skip_value() {
+        h.skipValue();
+        return this;
+    }
+    
+    @JRubyMethod
+    public IRubyObject value() {
+        return getRuntime().newString(new ByteList(h.getValue(), false));
+    }
+    
+    @JRubyMethod(optional=1)
+    public IRubyObject value_io(IRubyObject[] args) {
+        Ruby runtime = getRuntime();
+        IRubyObject valuesOnly = args.length > 0 ? args[0] : RubyBoolean.newBoolean(runtime, true);
+        InputStream valueStream = h.getValueStream(valuesOnly.isTrue());
+        return new RubyIO(runtime, valueStream);
+    }
 }
