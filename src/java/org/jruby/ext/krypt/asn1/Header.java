@@ -195,7 +195,7 @@ public class Header extends RubyObject {
     }
     
     @JRubyMethod(optional=1)
-    public IRubyObject value_io(ThreadContext ctx, IRubyObject[] args) {
+    public synchronized IRubyObject value_io(ThreadContext ctx, IRubyObject[] args) {
         Ruby runtime = ctx.getRuntime();
         IRubyObject valuesOnly = args.length > 0 ? args[0] : RubyBoolean.newBoolean(runtime, true);
         try {

@@ -77,7 +77,7 @@ class ParsedHeaderImpl implements ParsedHeader {
     }
 
     @Override
-    public synchronized byte[] getValue() {
+    public byte[] getValue() {
 	if (cachedValue == null) {
             if (consumed)
                 throw new ParseException("The stream is already consumed");
@@ -106,7 +106,7 @@ class ParsedHeaderImpl implements ParsedHeader {
     }
 
     @Override
-    public synchronized InputStream getValueStream(boolean valuesOnly) {
+    public InputStream getValueStream(boolean valuesOnly) {
         if (consumed && cachedValueStream == null)
             throw new ParseException("The stream is already consumed");
         
