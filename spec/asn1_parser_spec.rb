@@ -2,7 +2,7 @@ require 'krypt-core'
 require 'stringio'
 require_relative 'resources'
 
-describe Krypt::Asn1::Parser, "#new" do 
+describe Krypt::Asn1::Parser do 
   it "can be instantiated with default constructor" do 
     Krypt::Asn1::Parser.new.should be_an_instance_of Krypt::Asn1::Parser
   end
@@ -10,6 +10,13 @@ describe Krypt::Asn1::Parser, "#new" do
   it "takes no arguments in its constructor" do
     lambda { Krypt::Asn::Parser.new(Object.new) }.should raise_error
   end
+
+  it "should be reusable for several IOs" do
+    parser = Krypt::Asn1::Parser.new
+    parser.next(Resources.certificate_io).should_not be_nil
+    parser.next(Resources.certificate_io).should_not be_nil
+  end
+
 end
 
 describe Krypt::Asn1::Parser, "#next" do
@@ -67,7 +74,7 @@ end
 
 describe Krypt::Asn1::Header, "#skip_value" do
 
-  subject { Krypt::Asn1::Parser.new }
+  subject { }
 
   it "skips to the end of the file when asked to skip the value of a
       starting constructed value" do
@@ -76,9 +83,10 @@ describe Krypt::Asn1::Header, "#skip_value" do
   end
 
   def skip_value(io)
-    header = subject.next(io)
+    parser = Krypt::Asn1::Parser.new
+    header = parser.next(io)
     header.skip_value
-    subject.next(io).should be_nil
+    parser.next(io).should be_nil
   end
 
 end
