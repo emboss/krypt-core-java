@@ -140,14 +140,11 @@ public class Header extends RubyObject {
         Ruby runtime = ctx.getRuntime();
         OutputStream out = Streams.tryWrapAsOuputStream(runtime, io);
         try {
-            h.encodeTo(new IOOutputStream(io));
+            h.encodeTo(out);
             return this;
         }
         catch (SerializationException ex) {
             throw Errors.newSerializeError(runtime, ex.getMessage());
-        }
-        finally {
-            Streams.tryClose(runtime, out);
         }
     }
     
@@ -201,8 +198,6 @@ public class Header extends RubyObject {
         try {
             InputStream valueStream = h.getValueStream(valuesOnly.isTrue());
             RubyIO io = new RubyIO(runtime, valueStream);
-            //TODO is this needed?
-            io.setAutoclose(true);
             IRubyObject binaryEncoding = RubyEncoding.newEncoding(runtime, 
                                          runtime.getEncodingService().getAscii8bitEncoding());
             io.set_encoding(ctx, binaryEncoding);

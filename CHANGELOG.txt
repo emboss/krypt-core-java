@@ -1,4 +1,7 @@
 === 0.1.0 / 2011-11-21 [emboss]
+* do not auto-close IO after parsing or error
+
+=== 0.1.0 / 2011-11-21 [emboss]
 * use ThreadContext for Ruby methods 
 
 === 0.1.0 / 2011-11-21 [emboss]

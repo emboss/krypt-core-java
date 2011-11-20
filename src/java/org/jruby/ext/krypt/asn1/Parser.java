@@ -85,7 +85,6 @@ public class Parser extends RubyObject {
         try {
             ParsedHeader h = parser.next(in);
             if (h == null) {
-                Streams.tryClose(runtime, in);
                 return runtime.getNil();
             }
             else {
@@ -93,7 +92,6 @@ public class Parser extends RubyObject {
             }
         } 
         catch (ParseException ex) {
-            Streams.tryClose(runtime, in);
             throw Errors.newParseError(runtime, ex.getMessage());
         }
     }

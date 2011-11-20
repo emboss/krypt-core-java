@@ -2,6 +2,11 @@ require 'krypt-core'
 require 'stringio'
 require_relative 'resources'
 
+def do_and_close(io)
+  yield io
+  io.close
+end
+
 describe Krypt::Asn1::Parser do 
 
   it "can be instantiated with default constructor" do 
@@ -14,10 +19,12 @@ describe Krypt::Asn1::Parser do
 
   it "should be reusable for several IOs" do
     parser = Krypt::Asn1::Parser.new
-    parser.next(Resources.certificate_io).should_not be_nil
-    parser.next(Resources.certificate_io).should_not be_nil
+    io = Resources.certificate_io
+    do_and_close(io) { |io| parser.next(io).should_not be_nil }
+    io = Resources.certificate_io
+    do_and_close(io) { |io| parser.next(io).should_not be_nil }
   end
-
+  
 end
 
 describe Krypt::Asn1::Parser, "#next" do
@@ -25,7 +32,8 @@ describe Krypt::Asn1::Parser, "#next" do
   subject { Krypt::Asn1::Parser.new }
 
   it "returns a Header when called on an IO representing an ASN.1" do
-    parse_next Resources.certificate_io
+    io = Resources.certificate_io
+    do_and_close(io) { |io| parse_next io }
     parse_next(StringIO.new(Resources.certificate))
   end
 
@@ -41,16 +49,25 @@ describe Krypt::Asn1::Parser, "#next" do
     lambda { subject.next(:sym) }.should raise_error
   end
 
+  it "does not close the underlying IO after reading it" do
+    io = Resources.certificate_io
+    subject.next(io).skip_value
+    subject.next(io).should be_nil
+    io.closed?.should be_false
+    io.close
+    io.closed?.should be_true
+  end
+
   it "reads nested Headers when called subsequently for constructed values" do
     num_headers = 0
     io = Resources.certificate_io
-    parser = Krypt::Asn1::Parser.new
-    while header = parser.next(io)
+    while header = subject.next(io)
       num_headers += 1
       next if header.constructed?
       header.skip_value #need to consume the values
     end
     num_headers.should > 1
+    io.close
   end 
 
   it "also reads singular, non-constructed values" do
@@ -309,12 +326,14 @@ describe Krypt::Asn1::Header, "#value_io" do
     cert = Resources.certificate_io
     header = subject.next cert
     (header.bytes << header.value_io.read).should == Resources.certificate
+    cert.close
   end
 
   it "returns an IO whose content is in Encoding::BINARY" do
     cert = Resources.certificate_io
     header = subject.next cert
     header.value_io.read.encoding.should == Encoding::BINARY
+    cert.close
   end
 
   it "reads the values excluding the headers for an infinite length primitive
@@ -354,6 +373,7 @@ describe Krypt::Asn1::Header, "#value_io" do
     header = subject.next io
     header.value_io
     lambda { header.value_io }.should_not raise_error
+    io.close
   end
 
   it "raises an error if the value of a header is requested after requesting
@@ -362,6 +382,7 @@ describe Krypt::Asn1::Header, "#value_io" do
     header = subject.next io
     header.value_io
     lambda { header.value }.should raise_error
+    io.close
   end
 
   it "raises an error if an IO after reading the value of the header" do
@@ -369,6 +390,7 @@ describe Krypt::Asn1::Header, "#value_io" do
     header = subject.next io
     header.value
     lambda { header.value_io }.should raise_error
+    io.close
   end
 
   it "is stateful wrt to the amount of data already read" do
@@ -376,6 +398,7 @@ describe Krypt::Asn1::Header, "#value_io" do
     header = subject.next io
     header.value_io.read.should_not == ""
     header.value_io.read.should == ""
+    io.close
   end
 
   it "returns an 'empty' IO for missing values" do
