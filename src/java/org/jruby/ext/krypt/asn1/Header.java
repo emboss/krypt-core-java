@@ -136,8 +136,8 @@ public class Header extends RubyObject {
     }
     
     @JRubyMethod
-    public IRubyObject encode_to(IRubyObject io) {
-        Ruby runtime = getRuntime();
+    public IRubyObject encode_to(ThreadContext ctx, IRubyObject io) {
+        Ruby runtime = ctx.getRuntime();
         OutputStream out = Streams.tryWrapAsOuputStream(runtime, io);
         try {
             h.encodeTo(new IOOutputStream(io));
@@ -152,41 +152,45 @@ public class Header extends RubyObject {
     }
     
     @JRubyMethod
-    public IRubyObject bytes() {
+    public IRubyObject bytes(ThreadContext ctx) {
+        Ruby runtime = ctx.getRuntime();
+        
         try {
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             h.encodeTo(baos);
-            return getRuntime().newString(new ByteList(baos.toByteArray(), false));
+            return runtime.newString(new ByteList(baos.toByteArray(), false));
         }
         catch (SerializationException ex) {
-            throw Errors.newSerializeError(getRuntime(), ex.getMessage());
+            throw Errors.newSerializeError(runtime, ex.getMessage());
         }
     }
     
     @JRubyMethod
-    public IRubyObject skip_value() {
+    public synchronized IRubyObject skip_value() {
         h.skipValue();
         return this;
     }
     
     @JRubyMethod
-    public synchronized IRubyObject value() {
+    public synchronized IRubyObject value(ThreadContext ctx) {
         if (cachedValue == null) {
-            cachedValue = readValue();
+            cachedValue = readValue(ctx);
         }
         return cachedValue;
     }
     
-    private IRubyObject readValue() {
+    private IRubyObject readValue(ThreadContext ctx) {
+        Ruby runtime = ctx.getRuntime();
+        
         try {
             byte[] value = h.getValue();
             if (value == null || value.length == 0)
-                return getRuntime().getNil();
+                return runtime.getNil();
             else
-                return getRuntime().newString(new ByteList(value, false));
+                return runtime.newString(new ByteList(value, false));
         }
         catch (ParseException ex) {
-            throw Errors.newParseError(getRuntime(), ex.getMessage());
+            throw Errors.newParseError(runtime, ex.getMessage());
         }
     }
     
@@ -208,9 +212,8 @@ public class Header extends RubyObject {
         }
     }
     
-    @Override
     @JRubyMethod
-    public IRubyObject to_s() {
+    public IRubyObject to_s(ThreadContext ctx) {
         String s = new StringBuilder()
                 .append("Tag: ").append(h.getTag())
                 .append(" Tag Class: ").append(h.getTagClass().name())
@@ -218,6 +221,6 @@ public class Header extends RubyObject {
                 .append(" Constructed: ").append(h.isConstructed())
                 .append(" Infinite Length: ").append(h.isInfiniteLength())
                 .toString();
-        return getRuntime().newString(s);
+        return ctx.getRuntime().newString(s);
     }
 }

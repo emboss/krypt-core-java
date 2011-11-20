@@ -1,4 +1,7 @@
 === 0.1.0 / 2011-11-21 [emboss]
+* use ThreadContext for Ruby methods 
+
+=== 0.1.0 / 2011-11-21 [emboss]
 * Parser#next may also take Strings now
 
 === 0.1.0 / 2011-11-21 [emboss]
