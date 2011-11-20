@@ -29,12 +29,16 @@ describe Krypt::Asn1::Parser, "#next" do
     parse_next(StringIO.new(Resources.certificate))
   end
 
+  it "returns a Header when called on a String representing an ASN.1" do
+    parse_next(Resources.certificate)
+  end
+
   def parse_next(io)
     subject.next(io).should be_an_instance_of Krypt::Asn1::Header
   end
 
-  it "raises ArgumentError if anything other than an IO is passed" do
-    lambda { subject.next("text") }.should raise_error
+  it "raises ArgumentError if anything other than an IO or String is passed" do
+    lambda { subject.next(:sym) }.should raise_error
   end
 
   it "reads nested Headers when called subsequently for constructed values" do

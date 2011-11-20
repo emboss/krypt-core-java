@@ -32,6 +32,7 @@ package org.jruby.ext.krypt.asn1;
 import impl.krypt.asn1.ParseException;
 import impl.krypt.asn1.ParsedHeader;
 import impl.krypt.asn1.ParserFactory;
+import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import org.jruby.Ruby;
 import org.jruby.RubyClass;
@@ -41,6 +42,7 @@ import org.jruby.anno.JRubyMethod;
 import org.jruby.ext.krypt.Errors;
 import org.jruby.ext.krypt.Streams;
 import org.jruby.runtime.ObjectAllocator;
+import org.jruby.runtime.ThreadContext;
 import org.jruby.runtime.builtin.IRubyObject;
 
 /**
@@ -69,13 +71,17 @@ public class Parser extends RubyObject {
     }
     
     @JRubyMethod()
-    public IRubyObject next(IRubyObject io) {
-        Ruby runtime = getRuntime();
-        InputStream in = Streams.tryWrapAsInputStream(runtime, io);
-        RubyClass phClass = ((RubyModule)runtime.getModule("Krypt")
+    public IRubyObject next(ThreadContext ctx, IRubyObject io) {
+        Ruby runtime = ctx.getRuntime();
+        InputStream in = asStream(runtime, io);
+        RubyClass headerClass = ((RubyModule)runtime.getModule("Krypt")
                                                 .getConstant("Asn1"))
                                                 .getClass("Header");
         
+        return parseHeader(runtime, headerClass, in);
+    }
+    
+    private IRubyObject parseHeader(Ruby runtime, RubyClass headerClass, InputStream in) {
         try {
             ParsedHeader h = parser.next(in);
             if (h == null) {
@@ -83,12 +89,19 @@ public class Parser extends RubyObject {
                 return runtime.getNil();
             }
             else {
-                return new Header(runtime, phClass, h);
+                return new Header(runtime, headerClass, h);
             }
         } 
         catch (ParseException ex) {
             Streams.tryClose(runtime, in);
             throw Errors.newParseError(runtime, ex.getMessage());
         }
+    }
+    
+    private static InputStream asStream(Ruby runtime, IRubyObject obj) {
+        if (obj.getType().equals(runtime.getString()))
+            return new ByteArrayInputStream(obj.asString().getBytes());
+        else
+            return Streams.tryWrapAsInputStream(runtime, obj);
     }
 }
