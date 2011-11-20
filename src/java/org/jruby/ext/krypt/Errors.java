@@ -31,34 +31,25 @@ package org.jruby.ext.krypt;
 
 import org.jruby.Ruby;
 import org.jruby.RubyClass;
-import org.jruby.RubyModule;
-import org.jruby.ext.krypt.asn1.Header;
-import org.jruby.ext.krypt.asn1.Parser;
+import org.jruby.exceptions.RaiseException;
 
 /**
  * 
  * @author <a href="mailto:Martin.Bosslet@googlemail.com">Martin Bosslet</a>
  */
-public class KryptService {
+public class Errors {
+   
+    private Errors() { }
     
-    public static void create(Ruby runtime) {
-        RubyModule krypt = runtime.getOrCreateModule("Krypt");
-        RubyClass standardError = runtime.getClass("StandardError");
-        RubyClass kryptError = krypt.defineClassUnder("KryptError", standardError, standardError.getAllocator());
-        createAsn1(runtime, krypt, kryptError);
+    public static RaiseException newParseError(Ruby rt, String message) {
+        return newError(rt, "Krypt::Asn1::ParseError", message);
     }
     
-    private static void createAsn1(Ruby runtime, RubyModule krypt, RubyClass kryptError) {
-        RubyModule mAsn1 = runtime.defineModuleUnder("Asn1", krypt);
-        
-        RubyClass asn1Error = mAsn1.defineClassUnder("Asn1Error", kryptError, kryptError.getAllocator());
-        mAsn1.defineClassUnder("ParseError", asn1Error, asn1Error.getAllocator());
-        mAsn1.defineClassUnder("SerializeError", asn1Error, asn1Error.getAllocator());
-        
-        Parser.createParser(runtime, mAsn1);
-        Header.createHeader(runtime, mAsn1);
+    public static RaiseException newError(Ruby rt, String path, String message) {
+        return new RaiseException(rt, getClassFromPath(rt, path), message, true);
     }
     
-    
-    
+    public static RubyClass getClassFromPath(Ruby rt, String path) {
+        return (RubyClass)rt.getClassFromPath(path);
+    }
 }

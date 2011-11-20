@@ -29,7 +29,6 @@
  */
 package impl.krypt.asn1;
 
-import impl.krypt.asn1.ParseException;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;

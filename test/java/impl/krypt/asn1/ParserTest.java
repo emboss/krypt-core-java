@@ -29,11 +29,6 @@
  */
 package impl.krypt.asn1;
 
-import impl.krypt.asn1.Parser;
-import impl.krypt.asn1.Tags;
-import impl.krypt.asn1.ParsedHeader;
-import impl.krypt.asn1.ParserFactory;
-import impl.krypt.asn1.TagClass;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import impl.krypt.asn1.resources.Resources;
@@ -83,6 +78,24 @@ public class ParserTest {
                 token.skipValue();
             }
             assertTrue(numTokens > 1);
+        }
+        finally {
+            in.close();
+        }
+    }
+    
+    @Test
+    public void skipFirstValueShouldSkipUntilEof() throws Exception {
+        InputStream in = Resources.certificate();
+        ParsedHeader token;
+        
+        try {
+            Parser p = new ParserFactory().newHeaderParser();
+            token = p.next(in);
+            assertNotNull(token);
+            token.skipValue();
+            token = p.next(in);
+            assertNull(token);
         }
         finally {
             in.close();

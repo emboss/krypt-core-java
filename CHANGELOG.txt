@@ -1,4 +1,8 @@
 === 0.1.0 / 2011-11-20 [emboss]
+* Add Rspec specs for Parser and Header
+* Bug fixes
+
+=== 0.1.0 / 2011-11-20 [emboss]
 * Add Rakefile and build.xml
 
 === 0.1.0 / 2011-11-19 [emboss]

@@ -29,16 +29,10 @@
  */
 package impl.krypt.asn1;
 
-import impl.krypt.asn1.Tags;
-import impl.krypt.asn1.Header;
-import impl.krypt.asn1.TagClass;
-import impl.krypt.asn1.Asn1;
 import impl.krypt.asn1.encoder.InfiniteLengthBitString;
 import java.io.InputStream;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import java.io.FileOutputStream;
-import java.io.OutputStream;
 import java.util.ArrayList;
 import java.util.List;
 import impl.krypt.asn1.encoder.Asn1Serializer;

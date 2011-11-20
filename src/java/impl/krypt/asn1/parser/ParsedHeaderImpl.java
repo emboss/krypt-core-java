@@ -52,7 +52,8 @@ class ParsedHeaderImpl implements ParsedHeader {
     private final InputStream in;
     private final PullHeaderParser parser;
     
-    private InputStream valueStream;
+    private byte[] cachedValue;
+    private boolean consumed = false;
 
     ParsedHeaderImpl(Tag tag, 
                      Length length, 
@@ -75,20 +76,26 @@ class ParsedHeaderImpl implements ParsedHeader {
     }
 
     @Override
-    public byte[] getValue() {
-	byte[] ret = consume(getValueStream(false));
-        return ret.length == 0 ? null : ret;
+    public synchronized byte[] getValue() {
+	if (cachedValue == null) {
+            byte[] ret = consume(getValueStream(false));
+            cachedValue = ret.length == 0 ? null : ret;
+            consumed = true;
+        }
+        return cachedValue;
     }
 
     @Override
-    public InputStream getValueStream(boolean valuesOnly) {
-        if (valueStream == null) {
-            if (length.isInfiniteLength())
-                valueStream = new ChunkInputStream(in, parser, valuesOnly);
-            else
-                valueStream = new DefiniteInputStream(in, length.getLength());
-        }
-        return valueStream;
+    public synchronized InputStream getValueStream(boolean valuesOnly) {
+        if (consumed)
+            throw new ParseException("The stream has already been consumed.");
+        
+        consumed = true;
+        
+        if (length.isInfiniteLength())
+            return new ChunkInputStream(in, parser, valuesOnly);
+        else
+            return new DefiniteInputStream(in, length.getLength());
     }
 
     private byte[] consume(InputStream stream) {

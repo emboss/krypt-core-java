@@ -29,6 +29,7 @@
  */
 package org.jruby.ext.krypt.asn1;
 
+import impl.krypt.asn1.ParsedHeader;
 import impl.krypt.asn1.ParserFactory;
 import java.io.InputStream;
 import org.jruby.Ruby;
@@ -69,10 +70,14 @@ public class Parser extends RubyObject {
     public IRubyObject next(IRubyObject io) {
         InputStream in = new IOInputStream(io);
         Ruby runtime = getRuntime();
-        RubyClass phClass = runtime.getModule("Krypt")
-                                   .getRuntime().getModule("Asn1")
-                                   .getClass("ParsedHeader");
-        return new Header(runtime, phClass, parser.next(in));
+        RubyClass phClass = ((RubyModule)runtime.getModule("Krypt")
+                                                .getConstant("Asn1"))
+                                                .getClass("Header");
+        ParsedHeader h = parser.next(in);
+        if (h == null)
+            return runtime.getNil();
+        else
+            return new Header(runtime, phClass, h);
     }
     
 }

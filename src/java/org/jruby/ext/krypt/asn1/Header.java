@@ -29,8 +29,10 @@
  */
 package org.jruby.ext.krypt.asn1;
 
+import impl.krypt.asn1.ParseException;
 import impl.krypt.asn1.ParsedHeader;
 import impl.krypt.asn1.TagClass;
+import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
 import org.jruby.Ruby;
 import org.jruby.RubyBoolean;
@@ -41,6 +43,7 @@ import org.jruby.RubyModule;
 import org.jruby.RubyObject;
 import org.jruby.RubySymbol;
 import org.jruby.anno.JRubyMethod;
+import org.jruby.ext.krypt.Errors;
 import org.jruby.runtime.ObjectAllocator;
 import org.jruby.runtime.builtin.IRubyObject;
 import org.jruby.util.ByteList;
@@ -52,7 +55,7 @@ import org.jruby.util.IOOutputStream;
  */
 public class Header extends RubyObject {
     
-    public static void createParser(Ruby runtime, RubyModule mAsn1) {
+    public static void createHeader(Ruby runtime, RubyModule mAsn1) {
         mAsn1.defineClassUnder("Header", runtime.getObject(), ObjectAllocator.NOT_ALLOCATABLE_ALLOCATOR)
              .defineAnnotatedMethods(Header.class);
     }
@@ -132,6 +135,13 @@ public class Header extends RubyObject {
     }
     
     @JRubyMethod
+    public IRubyObject bytes() {
+        ByteArrayOutputStream baos = new ByteArrayOutputStream();
+        h.encodeTo(baos);
+        return getRuntime().newString(new ByteList(baos.toByteArray(), false));
+    }
+    
+    @JRubyMethod
     public IRubyObject skip_value() {
         h.skipValue();
         return this;
@@ -139,14 +149,36 @@ public class Header extends RubyObject {
     
     @JRubyMethod
     public IRubyObject value() {
-        return getRuntime().newString(new ByteList(h.getValue(), false));
+        byte[] value = h.getValue();
+        if (value == null || value.length == 0)
+            return getRuntime().getNil();
+        else
+            return getRuntime().newString(new ByteList(value, false));
     }
     
     @JRubyMethod(optional=1)
     public IRubyObject value_io(IRubyObject[] args) {
         Ruby runtime = getRuntime();
         IRubyObject valuesOnly = args.length > 0 ? args[0] : RubyBoolean.newBoolean(runtime, true);
-        InputStream valueStream = h.getValueStream(valuesOnly.isTrue());
-        return new RubyIO(runtime, valueStream);
+        try {
+            InputStream valueStream = h.getValueStream(valuesOnly.isTrue());
+            return new RubyIO(runtime, valueStream);
+        } 
+        catch (ParseException ex) {
+            throw Errors.newParseError(runtime, ex.getMessage());
+        }
+    }
+    
+    @Override
+    @JRubyMethod
+    public IRubyObject to_s() {
+        String s = new StringBuilder()
+                .append("Tag: ").append(h.getTag())
+                .append(" Tag Class: ").append(h.getTagClass().name())
+                .append(" Length: ").append(h.getLength())
+                .append(" Constructed: ").append(h.isConstructed())
+                .append(" Infinite Length: ").append(h.isInfiniteLength())
+                .toString();
+        return getRuntime().newString(s);
     }
 }
