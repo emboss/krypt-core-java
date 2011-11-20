@@ -29,31 +29,54 @@
  */
 package org.jruby.ext.krypt;
 
+import java.io.IOException;
+import java.io.InputStream;
+import java.io.OutputStream;
 import org.jruby.Ruby;
-import org.jruby.RubyClass;
-import org.jruby.exceptions.RaiseException;
+import org.jruby.runtime.builtin.IRubyObject;
+import org.jruby.util.IOInputStream;
+import org.jruby.util.IOOutputStream;
 
 /**
  * 
  * @author <a href="mailto:Martin.Bosslet@googlemail.com">Martin Bosslet</a>
  */
-public class Errors {
+public class Streams {
+   private Streams() { }
    
-    private Errors() { }
-    
-    public static RaiseException newParseError(Ruby rt, String message) {
-        return newError(rt, "Krypt::Asn1::ParseError", message);
+   public static InputStream tryWrapAsInputStream(Ruby runtime, IRubyObject io) {
+        try {
+            return new IOInputStream(io);
+        }
+        catch (IllegalArgumentException ex) {
+            throw runtime.newArgumentError(ex.getMessage());
+        }
     }
     
-    public static RaiseException newSerializeError(Ruby rt, String message) {
-        return newError(rt, "Krypt::Asn1::SerializeError", message);
+   public static OutputStream tryWrapAsOuputStream(Ruby runtime, IRubyObject io) {
+        try {
+            return new IOOutputStream(io);
+        }
+        catch (IllegalArgumentException ex) {
+            throw runtime.newArgumentError(ex.getMessage());
+        }
+    }
+   
+    public static void tryClose(Ruby runtime, InputStream in) {
+        try {
+            in.close();
+        }
+        catch (IOException ex) {
+            throw runtime.newRuntimeError(ex.getMessage());
+        }
     }
     
-    public static RaiseException newError(Ruby rt, String path, String message) {
-        return new RaiseException(rt, getClassFromPath(rt, path), message, true);
-    }
-    
-    public static RubyClass getClassFromPath(Ruby rt, String path) {
-        return (RubyClass)rt.getClassFromPath(path);
+    public static void tryClose(Ruby runtime, OutputStream out) {
+        try {
+            out.close();
+        }
+        catch (IOException ex) {
+            throw runtime.newRuntimeError(ex.getMessage());
+        }
     }
 }

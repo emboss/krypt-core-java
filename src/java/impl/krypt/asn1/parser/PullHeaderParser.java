@@ -61,6 +61,10 @@ public class PullHeaderParser implements Parser {
         byte b = (byte)read;
         Tag tag = parseTag(b, in);
 	Length length = parseLength(in);
+        
+        if (length.isInfiniteLength() && !tag.isConstructed())
+            throw new ParseException("Infinite length values must be constructed");
+        
 	return new ParsedHeaderImpl(tag, length, in, this);
     }
     

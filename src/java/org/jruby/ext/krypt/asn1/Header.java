@@ -31,12 +31,15 @@ package org.jruby.ext.krypt.asn1;
 
 import impl.krypt.asn1.ParseException;
 import impl.krypt.asn1.ParsedHeader;
+import impl.krypt.asn1.SerializationException;
 import impl.krypt.asn1.TagClass;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
+import java.io.OutputStream;
 import org.jruby.Ruby;
 import org.jruby.RubyBoolean;
 import org.jruby.RubyClass;
+import org.jruby.RubyEncoding;
 import org.jruby.RubyFixnum;
 import org.jruby.RubyIO;
 import org.jruby.RubyModule;
@@ -44,7 +47,9 @@ import org.jruby.RubyObject;
 import org.jruby.RubySymbol;
 import org.jruby.anno.JRubyMethod;
 import org.jruby.ext.krypt.Errors;
+import org.jruby.ext.krypt.Streams;
 import org.jruby.runtime.ObjectAllocator;
+import org.jruby.runtime.ThreadContext;
 import org.jruby.runtime.builtin.IRubyObject;
 import org.jruby.util.ByteList;
 import org.jruby.util.IOOutputStream;
@@ -68,6 +73,8 @@ public class Header extends RubyObject {
     private final IRubyObject isInfLen;
     private final IRubyObject len;
     private final IRubyObject hlen;
+    
+    private IRubyObject cachedValue;
     
     public Header(Ruby runtime, RubyClass type, impl.krypt.asn1.ParsedHeader h) {
         super(runtime, type);
@@ -130,15 +137,30 @@ public class Header extends RubyObject {
     
     @JRubyMethod
     public IRubyObject encode_to(IRubyObject io) {
-        h.encodeTo(new IOOutputStream(io));
-        return this;
+        Ruby runtime = getRuntime();
+        OutputStream out = Streams.tryWrapAsOuputStream(runtime, io);
+        try {
+            h.encodeTo(new IOOutputStream(io));
+            return this;
+        }
+        catch (SerializationException ex) {
+            throw Errors.newSerializeError(runtime, ex.getMessage());
+        }
+        finally {
+            Streams.tryClose(runtime, out);
+        }
     }
     
     @JRubyMethod
     public IRubyObject bytes() {
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        h.encodeTo(baos);
-        return getRuntime().newString(new ByteList(baos.toByteArray(), false));
+        try {
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            h.encodeTo(baos);
+            return getRuntime().newString(new ByteList(baos.toByteArray(), false));
+        }
+        catch (SerializationException ex) {
+            throw Errors.newSerializeError(getRuntime(), ex.getMessage());
+        }
     }
     
     @JRubyMethod
@@ -148,21 +170,38 @@ public class Header extends RubyObject {
     }
     
     @JRubyMethod
-    public IRubyObject value() {
-        byte[] value = h.getValue();
-        if (value == null || value.length == 0)
-            return getRuntime().getNil();
-        else
-            return getRuntime().newString(new ByteList(value, false));
+    public synchronized IRubyObject value() {
+        if (cachedValue == null) {
+            cachedValue = readValue();
+        }
+        return cachedValue;
+    }
+    
+    private IRubyObject readValue() {
+        try {
+            byte[] value = h.getValue();
+            if (value == null || value.length == 0)
+                return getRuntime().getNil();
+            else
+                return getRuntime().newString(new ByteList(value, false));
+        }
+        catch (ParseException ex) {
+            throw Errors.newParseError(getRuntime(), ex.getMessage());
+        }
     }
     
     @JRubyMethod(optional=1)
-    public IRubyObject value_io(IRubyObject[] args) {
-        Ruby runtime = getRuntime();
+    public IRubyObject value_io(ThreadContext ctx, IRubyObject[] args) {
+        Ruby runtime = ctx.getRuntime();
         IRubyObject valuesOnly = args.length > 0 ? args[0] : RubyBoolean.newBoolean(runtime, true);
         try {
             InputStream valueStream = h.getValueStream(valuesOnly.isTrue());
-            return new RubyIO(runtime, valueStream);
+            RubyIO io = new RubyIO(runtime, valueStream);
+            //TODO is this needed?
+            io.setAutoclose(true);
+            //TODO is there a more efficient way?
+            io.set_encoding(ctx, runtime.newString("BINARY"));
+            return io;
         } 
         catch (ParseException ex) {
             throw Errors.newParseError(runtime, ex.getMessage());

@@ -1,3 +1,9 @@
+=== 0.1.0 / 2011-11-21 [emboss]
+* All methods of Parser and Header have specs now
+* Improved exception handling
+* Ensure binary encoding for Header#value_io 
+* Bug fixes
+
 === 0.1.0 / 2011-11-20 [emboss]
 * Add Rspec specs for Parser and Header
 * Bug fixes

@@ -33,6 +33,15 @@ _EOF_
     def certificate_io
       File.new(File.expand_path('res/certificate.cer', File.dirname(__FILE__)))
     end
+
+    def bytes_to_io(str)
+      raw = [str.join('')].pack('H*')
+      StringIO.new raw  
+    end
+
+    def bytes(str)
+      [str.join('')].pack('H*')
+    end
   end
 
 end
