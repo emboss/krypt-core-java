@@ -72,9 +72,15 @@ describe Krypt::Asn1::Parser, "#next" do
 
 end
 
-describe Krypt::Asn1::Header, "#skip_value" do
+describe Krypt::Asn1::Header do
+  
+  it "cannot be instantiated" do
+    lambda { Krypt::Asn1::Header.new }.should raise_error
+  end
+  
+end
 
-  subject { }
+describe Krypt::Asn1::Header, "#skip_value" do
 
   it "skips to the end of the file when asked to skip the value of a
       starting constructed value" do
