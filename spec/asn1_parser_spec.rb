@@ -38,7 +38,7 @@ describe Krypt::Asn1::Parser, "#next" do
   end 
 
   it "yields the original contents for the header and the value of the
-    initial sequence" do
+      initial sequence" do
     cert = Resources.certificate
     io = StringIO.new cert
     parser = Krypt::Asn1::Parser.new
@@ -49,7 +49,7 @@ describe Krypt::Asn1::Parser, "#next" do
   end
 
   it "yields the original contents for the headers and the values of all
-    values" do
+      values" do
     cert = Resources.certificate
     io = StringIO.new cert
     parser = Krypt::Asn1::Parser.new
@@ -71,8 +71,8 @@ describe Krypt::Asn1::Header, "#skip_value" do
 
   it "skips to the end of the file when asked to skip the value of a
       starting constructed value" do
-      skip_value(StringIO.new(Resources.certificate))
-      skip_value Resources.certificate_io
+    skip_value(StringIO.new(Resources.certificate))
+    skip_value Resources.certificate_io
   end
 
   def skip_value(io)
