@@ -74,6 +74,8 @@ public class Header extends RubyObject {
     private final IRubyObject len;
     private final IRubyObject hlen;
     
+    private final IRubyObject BINARY;
+    
     private IRubyObject cachedValue;
     
     public Header(Ruby runtime, RubyClass type, impl.krypt.asn1.ParsedHeader h) {
@@ -88,6 +90,8 @@ public class Header extends RubyObject {
         this.isInfLen = RubyBoolean.newBoolean(runtime, h.isInfiniteLength());
         this.len = RubyFixnum.newFixnum(runtime, h.getLength());
         this.hlen = RubyFixnum.newFixnum(runtime, h.getHeaderLength());
+        
+        this.BINARY = RubyEncoding.newEncoding(runtime, runtime.getEncodingService().getAscii8bitEncoding());
     }
     
     private static IRubyObject tagClassFor(Ruby runtime, TagClass tc) {
@@ -203,8 +207,7 @@ public class Header extends RubyObject {
             RubyIO io = new RubyIO(runtime, valueStream);
             //TODO is this needed?
             io.setAutoclose(true);
-            //TODO is there a more efficient way?
-            io.set_encoding(ctx, runtime.newString("BINARY"));
+            io.set_encoding(ctx, BINARY);
             return io;
         } 
         catch (ParseException ex) {
