@@ -1,7 +1,7 @@
 require 'rake'
 require 'rake/testtask'
 
-MANIFEST = FileList["Rakefile", "Manifest.txt", "CHANGELOG.txt" "README.txt", "License.txt", "lib/jkrypt.jar", "lib/**/*", "test/**/*"]
+MANIFEST = FileList["Rakefile", "Manifest.txt", "CHANGELOG.txt", "README.txt", "License.txt", "lib/jkrypt.jar", "lib/**/*", "test/**/*"]
 
 task :default => [:java_compile, :test]
 
