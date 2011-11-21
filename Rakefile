@@ -53,8 +53,7 @@ begin
   hoe = Hoe.spec("krypt-core-jruby") do |p|
     load File.dirname(__FILE__) + "/lib/jkrypt/version.rb"
     p.version = Jkrypt::Version::VERSION
-    p.rubyforge_name = "jruby-extras"
-    p.url = "http://jruby-extras.rubyforge.org/krypt-core-jruby"
+    p.url = "https://github.com/emboss/krypt-core-jruby"
     p.author = "Hiroshi Nakamura, Martin Bosslet"
     p.email = "Martin.Bosslet@googlemail.com"
     p.summary = "krypt-core API implementation in JRuby"
