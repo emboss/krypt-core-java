@@ -1,3 +1,7 @@
+=== 0.1.0 / 2011-11-25 [emboss]
+* fix Parser instantiation spec
+* specify errors that are to be raised in specs 
+
 === 0.1.0 / 2011-11-21 [emboss]
 * do not auto-close IO after parsing or error
 

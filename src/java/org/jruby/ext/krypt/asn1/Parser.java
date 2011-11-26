@@ -70,6 +70,12 @@ public class Parser extends RubyObject {
         this.parser = new ParserFactory().newHeaderParser();
     }
     
+    @Override
+    @JRubyMethod()
+    public IRubyObject initialize(ThreadContext ctx) {
+        return this;
+    }
+    
     @JRubyMethod()
     public IRubyObject next(ThreadContext ctx, IRubyObject io) {
         Ruby runtime = ctx.getRuntime();

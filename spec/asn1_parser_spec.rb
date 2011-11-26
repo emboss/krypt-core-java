@@ -14,7 +14,7 @@ describe Krypt::Asn1::Parser do
   end
 
   it "takes no arguments in its constructor" do
-    lambda { Krypt::Asn::Parser.new(Object.new) }.should raise_error
+    lambda { Krypt::Asn1::Parser.new(Object.new) }.should raise_error(ArgumentError)
   end
 
   it "should be reusable for several IOs" do
@@ -46,7 +46,7 @@ describe Krypt::Asn1::Parser, "#next" do
   end
 
   it "raises ArgumentError if anything other than an IO or String is passed" do
-    lambda { subject.next(:sym) }.should raise_error
+    lambda { subject.next(:sym) }.should raise_error(ArgumentError)
   end
 
   it "does not close the underlying IO after reading it" do
@@ -110,7 +110,7 @@ end
 describe Krypt::Asn1::Header do
   
   it "cannot be instantiated" do
-    lambda { Krypt::Asn1::Header.new }.should raise_error
+    lambda { Krypt::Asn1::Header.new }.should raise_error(TypeError)
   end
   
 end
@@ -207,7 +207,7 @@ describe Krypt::Asn1::Header, "#infinite_len?" do
   end
 
   it "raises an error for infinite length primitive values" do
-    lambda { evaluate(%w{04 80 04 01 01 00 00}, true) }.should raise_error
+    lambda { evaluate(%w{04 80 04 01 01 00 00}, true) }.should raise_error(Krypt::Asn1::ParseError)
   end
 
   def evaluate(bytes, expectation)
@@ -381,7 +381,7 @@ describe Krypt::Asn1::Header, "#value_io" do
     io = Resources.certificate_io
     header = subject.next io
     header.value_io
-    lambda { header.value }.should raise_error
+    lambda { header.value }.should raise_error(Krypt::Asn1::ParseError)
     io.close
   end
 
@@ -389,7 +389,7 @@ describe Krypt::Asn1::Header, "#value_io" do
     io = Resources.certificate_io
     header = subject.next io
     header.value
-    lambda { header.value_io }.should raise_error
+    lambda { header.value_io }.should raise_error(Krypt::Asn1::ParseError)
     io.close
   end
 
