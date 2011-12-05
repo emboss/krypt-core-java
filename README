@@ -1,0 +1,19 @@
+== krypt-core-jruby
+
+The Java implementation of the krypt-core API 
+used by JRuby.
+
+== Requirements
+
+Java SE 6 or higher.
+ 
+== krypt
+
+For more information about krypt, please have a
+look at the project and its wiki at
+
+https://github.com/emboss/krypt
+ 
+Copyright (c) 2011
+Hiroshi Nakamura <nahi@ruby-lang.org>
+Martin Bosslet <Martin.Bosslet@googlemail.com>
