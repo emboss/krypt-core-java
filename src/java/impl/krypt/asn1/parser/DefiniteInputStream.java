@@ -73,7 +73,7 @@ class DefiniteInputStream extends FilterInputStream {
         
         int toRead, actuallyRead;
         
-        if (length - len < read)
+        if (length - read < len)
             toRead = length - read;
         else
             toRead = len;

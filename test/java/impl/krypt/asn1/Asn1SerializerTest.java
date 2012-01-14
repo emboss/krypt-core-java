@@ -29,25 +29,16 @@
  */
 package impl.krypt.asn1;
 
-import impl.krypt.asn1.encoder.InfiniteLengthBitString;
-import java.io.InputStream;
+import static impl.krypt.asn1.Utils.byteTimes;
+import static impl.krypt.asn1.Utils.bytesOf;
+import impl.krypt.asn1.encoder.*;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
+import java.io.InputStream;
 import java.util.ArrayList;
 import java.util.List;
-import impl.krypt.asn1.encoder.Asn1Serializer;
-import impl.krypt.asn1.encoder.InfiniteLengthOctetString;
-import impl.krypt.asn1.encoder.InfiniteLengthStreamingValue;
-import impl.krypt.asn1.encoder.InfiniteLengthListValue;
-import impl.krypt.asn1.encoder.PrimitiveValue;
-import impl.krypt.asn1.encoder.Sequence;
-import org.junit.After;
-import org.junit.AfterClass;
-import org.junit.Before;
-import org.junit.BeforeClass;
-import org.junit.Test;
 import static org.junit.Assert.*;
-import static impl.krypt.asn1.Utils.*;
+import org.junit.*;
 
 /**
  * 

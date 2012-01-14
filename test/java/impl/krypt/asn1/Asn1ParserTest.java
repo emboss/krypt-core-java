@@ -29,16 +29,17 @@
  */
 package impl.krypt.asn1;
 
-import java.io.ByteArrayInputStream;
-import java.io.InputStream;
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
+import static impl.krypt.asn1.Utils.byteTimes;
+import static impl.krypt.asn1.Utils.bytesOf;
 import impl.krypt.asn1.encoder.Asn1Serializer;
 import impl.krypt.asn1.parser.Asn1Parser;
 import impl.krypt.asn1.resources.Resources;
-import org.junit.Test;
+import java.io.ByteArrayInputStream;
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.io.InputStream;
 import static org.junit.Assert.*;
-import static impl.krypt.asn1.Utils.*;
+import org.junit.Test;
 /**
  * 
  * @author <a href="mailto:Martin.Bosslet@googlemail.com">Martin Bosslet</a>

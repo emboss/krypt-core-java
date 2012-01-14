@@ -1,1 +1,8 @@
+Remove Parser#next for VALUEs representing a pure String!
 
+Do not cache the encoding for Tag and Length. This should 
+perform better on average. Still, put the current implementation
+in a separate branch, if it should be needed in the future.
+
+DefiniteInputStream and ChunkedInputStream: Respect the boundaries
+on a skip.

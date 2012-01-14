@@ -14,4 +14,6 @@ tmp
 .project
 *.class
 *.swp
+*.swo
+*~
 

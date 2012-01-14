@@ -42,7 +42,7 @@ public class Tags {
     public static final byte BIT_STRING        = (byte)0x03;
     public static final byte OCTET_STRING      = (byte)0x04;
     public static final byte NULL              = (byte)0x05;
-    public static final byte OBJECT_IDENTIFIER = (byte)0x06;
+    public static final byte OBJECT_ID         = (byte)0x06;
     
     public static final byte ENUMERATED        = (byte)0xa0;
     

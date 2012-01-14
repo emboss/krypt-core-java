@@ -142,13 +142,13 @@ public class PullHeaderParser implements Parser {
     private Length parseComplexDefiniteLength(byte b, InputStream in) {
         int len = 0;
         int numOctets = b & 0x7f;
+        int off = 0;
         
         if (numOctets > INT_BYTE_LEN)
             throw new ParseException("Definite value length too long.");
         
         byte[] encoding = new byte[numOctets+1];
-        encoding[0] = b;
-        int off = 1;
+        encoding[off++] = b;
         
         for (int i=numOctets; i > 0; i--) {
             b = nextByte(in);

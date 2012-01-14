@@ -1,7 +1,7 @@
 require 'rake'
 require 'rake/testtask'
 
-MANIFEST = FileList["Rakefile", "Manifest.txt", "CHANGELOG.txt", "README.txt", "License.txt", "lib/jkrypt.jar", "lib/**/*", "test/**/*"]
+MANIFEST = FileList["Rakefile", "Manifest.txt", "CHANGELOG.rdoc", "README.rdoc", "License.txt", "lib/jkrypt.jar", "lib/**/*", "test/**/*"]
 
 task :default => [:java_compile, :test]
 
@@ -36,13 +36,13 @@ task :java_compile do
   end
 
   sh "#{ENV['JAVA_HOME']}/bin/javac @pkg/compile_options @pkg/compile_classpath @pkg/compile_sourcefiles"
-  sh "#{ENV['JAVA_HOME']}/bin/jar cf lib/jkrypt.jar -C pkg/classes/ ."
+  sh "#{ENV['JAVA_HOME']}/bin/jar cf lib/kryptcore.jar -C pkg/classes/ ."
 end
 
-file "lib/jkrypt.jar" => :java_compile
+file "lib/kryptcore.jar" => :java_compile
 
 task :clean do
-  rm_f FileList['lib/jkrypt.jar']
+  rm_f FileList['lib/kryptcore.jar']
 end
 
 File.open("Manifest.txt", "w") {|f| MANIFEST.each {|n| f.puts n } }
@@ -51,14 +51,14 @@ begin
   require 'hoe'
   Hoe.plugin :gemcutter
   hoe = Hoe.spec("krypt-core-jruby") do |p|
-    load File.dirname(__FILE__) + "/lib/jkrypt/version.rb"
-    p.version = Jkrypt::Version::VERSION
+    load File.dirname(__FILE__) + "/lib/krypt/core/version.rb"
+    p.version = Krypt::Core::Version::VERSION
     p.url = "https://github.com/emboss/krypt-core-jruby"
     p.author = "Hiroshi Nakamura, Martin Bosslet"
     p.email = "Martin.Bosslet@googlemail.com"
     p.summary = "krypt-core API implementation in JRuby"
-    p.changes = p.paragraphs_of('CHANGELOG.txt', 0..1).join("\n\n")
-    p.description = p.paragraphs_of('README.txt', 3...4).join("\n\n")
+    p.changes = p.paragraphs_of('CHANGELOG.rdoc', 0..1).join("\n\n")
+    p.description = p.paragraphs_of('README.rdoc', 3...4).join("\n\n")
     p.test_globs = ENV["TEST"] || ["test/test_all.rb"]
   end
   hoe.spec.dependencies.delete_if { |dep| dep.name == "hoe" }

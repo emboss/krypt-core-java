@@ -29,14 +29,15 @@
  */
 package impl.krypt.asn1;
 
+import static impl.krypt.asn1.Utils.bytesOf;
+import static impl.krypt.asn1.Utils.consume;
+import impl.krypt.asn1.resources.Resources;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
-import impl.krypt.asn1.resources.Resources;
 import java.io.IOException;
 import java.io.InputStream;
-import org.junit.Test;
 import static org.junit.Assert.*;
-import static impl.krypt.asn1.Utils.*;
+import org.junit.Test;
 
 /**
  * 

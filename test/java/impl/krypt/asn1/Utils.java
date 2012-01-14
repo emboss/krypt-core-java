@@ -44,7 +44,7 @@ public class Utils {
     public static byte[] consume(InputStream stream) {
         
         byte[] buf = new byte[8192];
-        int read = 0;
+        int read;
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         
         try {

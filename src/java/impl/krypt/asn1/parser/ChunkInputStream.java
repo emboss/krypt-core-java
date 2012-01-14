@@ -218,7 +218,7 @@ class ChunkInputStream extends FilterInputStream {
     private void readNewHeader() {
         currentHeader = parser.next(in);
         if (currentHeader == null)
-            throw new ParseException("Premature EOF detected.");
+            throw new ParseException("Premature end of value detected.");
         state = State.PROCESS_TAG;
         headerOffset = 0;
     }

@@ -103,9 +103,8 @@ public class Parser extends RubyObject {
     }
     
     private static InputStream asStream(Ruby runtime, IRubyObject obj) {
-        if (obj.getType().equals(runtime.getString()))
-            return new ByteArrayInputStream(obj.asString().getBytes());
-        else
-            return Streams.tryWrapAsInputStream(runtime, obj);
+        if (!obj.respondsTo("read"))
+            throw Errors.newError(runtime, "ArgumentError", "Object must respond to read");
+        return Streams.tryWrapAsInputStream(runtime, obj);
     }
 }

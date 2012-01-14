@@ -119,8 +119,8 @@ public class Header extends RubyObject {
         return isConstructed;
     }
     
-    @JRubyMethod(name="infinite_len?")
-    public IRubyObject is_infinite_len() {
+    @JRubyMethod(name="infinite?")
+    public IRubyObject is_infinite() {
         return isInfLen;
     }
     
@@ -213,6 +213,7 @@ public class Header extends RubyObject {
                 .append("Tag: ").append(h.getTag())
                 .append(" Tag Class: ").append(h.getTagClass().name())
                 .append(" Length: ").append(h.getLength())
+                .append(" Header Length: ").append(h.getHeaderLength())
                 .append(" Constructed: ").append(h.isConstructed())
                 .append(" Infinite Length: ").append(h.isInfiniteLength())
                 .toString();

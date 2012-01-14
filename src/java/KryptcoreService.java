@@ -27,38 +27,19 @@
 * the provisions above, a recipient may use your version of this file under
 * the terms of any one of the CPL, the GPL or the LGPL.
  */
-package org.jruby.ext.krypt;
 
+import java.io.IOException;
 import org.jruby.Ruby;
-import org.jruby.RubyClass;
-import org.jruby.RubyModule;
-import org.jruby.ext.krypt.asn1.Header;
-import org.jruby.ext.krypt.asn1.Parser;
+import org.jruby.ext.krypt.KryptCoreService;
+import org.jruby.runtime.load.BasicLibraryService;
 
 /**
  * 
  * @author <a href="mailto:Martin.Bosslet@googlemail.com">Martin Bosslet</a>
  */
-public class KryptService {
-    
-    public static void create(Ruby runtime) {
-        RubyModule krypt = runtime.getOrCreateModule("Krypt");
-        RubyClass standardError = runtime.getClass("StandardError");
-        RubyClass kryptError = krypt.defineClassUnder("KryptError", standardError, standardError.getAllocator());
-        createAsn1(runtime, krypt, kryptError);
+public class KryptcoreService implements BasicLibraryService {
+    public boolean basicLoad(Ruby runtime) throws IOException {
+        KryptCoreService.create(runtime);
+        return true;
     }
-    
-    private static void createAsn1(Ruby runtime, RubyModule krypt, RubyClass kryptError) {
-        RubyModule mAsn1 = runtime.defineModuleUnder("Asn1", krypt);
-        
-        RubyClass asn1Error = mAsn1.defineClassUnder("Asn1Error", kryptError, kryptError.getAllocator());
-        mAsn1.defineClassUnder("ParseError", asn1Error, asn1Error.getAllocator());
-        mAsn1.defineClassUnder("SerializeError", asn1Error, asn1Error.getAllocator());
-        
-        Parser.createParser(runtime, mAsn1);
-        Header.createHeader(runtime, mAsn1);
-    }
-    
-    
-    
 }

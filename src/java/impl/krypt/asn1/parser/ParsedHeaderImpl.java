@@ -80,7 +80,7 @@ class ParsedHeaderImpl implements ParsedHeader {
     public byte[] getValue() {
 	if (cachedValue == null) {
             if (consumed)
-                throw new ParseException("The stream is already consumed");
+                throw new ParseException("The stream has already been consumed");
             
             InputStream stream = getValueStream(false);
             byte[] ret = doGetValue(stream);
