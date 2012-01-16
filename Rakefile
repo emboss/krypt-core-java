@@ -32,7 +32,7 @@ task :java_compile do
   end
 
   File.open("pkg/compile_sourcefiles", "w") do |f|
-    f << FileList['src/java/**/*.java'].join(' ')
+    f << FileList['src/**/*.java'].join(' ')
   end
 
   sh "#{ENV['JAVA_HOME']}/bin/javac @pkg/compile_options @pkg/compile_classpath @pkg/compile_sourcefiles"
