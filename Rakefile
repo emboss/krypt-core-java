@@ -1,9 +1,11 @@
 require 'rake'
 require 'rake/testtask'
+require 'rspec/core/rake_task'
 
-MANIFEST = FileList["Rakefile", "Manifest.txt", "CHANGELOG.rdoc", "README.rdoc", "License.txt", "lib/jkrypt.jar", "lib/**/*", "test/**/*"]
+# TODO: update
+MANIFEST = FileList["Rakefile", "Manifest.txt", "CHANGELOG.rdoc", "README.rdoc", "License.txt", "lib/kryptcore.jar", "lib/**/*", "spec/**/*"]
 
-task :default => [:java_compile, :test]
+task :default => [:java_compile, :spec]
 
 def java_classpath_arg # myriad of ways to discover JRuby classpath
   begin
@@ -47,29 +49,11 @@ end
 
 File.open("Manifest.txt", "w") {|f| MANIFEST.each {|n| f.puts n } }
 
-begin
-  require 'hoe'
-  Hoe.plugin :gemcutter
-  hoe = Hoe.spec("krypt-core-jruby") do |p|
-    load File.dirname(__FILE__) + "/lib/krypt/core/version.rb"
-    p.version = Krypt::Core::Version::VERSION
-    p.url = "https://github.com/emboss/krypt-core-jruby"
-    p.author = "Hiroshi Nakamura, Martin Bosslet"
-    p.email = "Martin.Bosslet@googlemail.com"
-    p.summary = "krypt-core API implementation in JRuby"
-    p.changes = p.paragraphs_of('CHANGELOG.rdoc', 0..1).join("\n\n")
-    p.description = p.paragraphs_of('README.rdoc', 3...4).join("\n\n")
-    p.test_globs = ENV["TEST"] || ["test/test_all.rb"]
-  end
-  hoe.spec.dependencies.delete_if { |dep| dep.name == "hoe" }
-
-  task :gemspec do
-    File.open("#{hoe.name}.gemspec", "w") {|f| f << hoe.spec.to_ruby }
-  end
-  task :package => :gemspec
-rescue LoadError
-  puts "You need Hoe installed to be able to package this gem"
-rescue => e
-  puts "ignoring error while loading hoe: #{e.to_s}"
+RSpec::Core::RakeTask.new(:spec) do |spec|
+  spec.ruby_opts = [
+    "--1.9", 
+    "-J-Demma.coverage.out.file=coverage.ec",
+    "-J-Demma.coverage.out.merge=true",
+    "-J-Demma.verbosity.level=silent"
+  ].join(' ')
 end
-
