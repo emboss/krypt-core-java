@@ -1,6 +1,6 @@
 require 'java'
 require 'openssl'
-$CLASSPATH << File.expand_path('../../lib/jkrypt.jar', File.dirname(__FILE__))
+$CLASSPATH << File.expand_path('../../lib/kryptcore.jar', File.dirname(__FILE__))
 java_import 'java.io.ByteArrayInputStream'
 java_import 'impl.krypt.asn1.ParserFactory'
 java_import 'impl.krypt.asn1.ParsedHeader'
