@@ -3,7 +3,7 @@
   <property environment="env"/>
   <property file="build.properties"/>
 
-  <property name="src.java" value="src/java"/>
+  <property name="src.java" value="src"/>
   <property name="target" value="build"/>
   <property name="target.classes" value="${target}/classes"/>
   <property name="target.classes.test" value="${target}/test-classes"/>
