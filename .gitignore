@@ -1,4 +1,4 @@
-lib/jkrypt.jar
+lib/kryptcore.jar
 nbproject/private
 nbbuild.xml
 manifest.mf
@@ -7,6 +7,7 @@ pkg
 build.properties
 build_lib/jruby.jar
 build
+coverage.ec
 dist
 doc
 tmp
