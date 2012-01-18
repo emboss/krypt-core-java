@@ -29,12 +29,10 @@
  */
 package org.jruby.ext.krypt;
 
-import impl.krypt.asn1.Tags;
 import org.jruby.Ruby;
 import org.jruby.RubyClass;
 import org.jruby.RubyModule;
-import org.jruby.ext.krypt.asn1.Header;
-import org.jruby.ext.krypt.asn1.Parser;
+import org.jruby.ext.krypt.asn1.Asn1;
 
 /**
  * 
@@ -46,44 +44,6 @@ public class KryptCoreService {
         RubyModule krypt = runtime.getOrCreateModule("Krypt");
         RubyClass standardError = runtime.getClass("StandardError");
         RubyClass kryptError = krypt.defineClassUnder("KryptError", standardError, standardError.getAllocator());
-        createAsn1(runtime, krypt, kryptError);
-    }
-    
-    private static void createAsn1(Ruby runtime, RubyModule krypt, RubyClass kryptError) {
-        RubyModule mAsn1 = runtime.defineModuleUnder("Asn1", krypt);
-        
-        RubyClass asn1Error = mAsn1.defineClassUnder("Asn1Error", kryptError, kryptError.getAllocator());
-        mAsn1.defineClassUnder("ParseError", asn1Error, asn1Error.getAllocator());
-        mAsn1.defineClassUnder("SerializeError", asn1Error, asn1Error.getAllocator());
-        
-        mAsn1.defineConstant("END_OF_CONTENTS",  runtime.newFixnum(Tags.END_OF_CONTENTS));
-        mAsn1.defineConstant("BOOLEAN",          runtime.newFixnum(Tags.BOOLEAN));
-        mAsn1.defineConstant("INTEGER",          runtime.newFixnum(Tags.INTEGER));
-        mAsn1.defineConstant("BIT_STRING",       runtime.newFixnum(Tags.BIT_STRING));
-        mAsn1.defineConstant("OCTET_STRING",     runtime.newFixnum(Tags.OCTET_STRING));
-        mAsn1.defineConstant("NULL",             runtime.newFixnum(Tags.NULL));
-        mAsn1.defineConstant("OBJECT_ID",        runtime.newFixnum(Tags.OBJECT_ID));
-        mAsn1.defineConstant("ENUMERATED",       runtime.newFixnum(Tags.ENUMERATED));
-        mAsn1.defineConstant("UTF8_STRING",      runtime.newFixnum(Tags.UTF8_STRING));
-        mAsn1.defineConstant("SEQUENCE",         runtime.newFixnum(Tags.SEQUENCE));
-        mAsn1.defineConstant("SET",              runtime.newFixnum(Tags.SET));
-        mAsn1.defineConstant("NUMERIC_STRING",   runtime.newFixnum(Tags.NUMERIC_STRING));
-        mAsn1.defineConstant("PRINTABLE_STRING", runtime.newFixnum(Tags.PRINTABLE_STRING));
-        mAsn1.defineConstant("T61_STRING",       runtime.newFixnum(Tags.T61_STRING));
-        mAsn1.defineConstant("VIDEOTEX_STRING",  runtime.newFixnum(Tags.VIDEOTEX_STRING));
-        mAsn1.defineConstant("IA5_STRING",       runtime.newFixnum(Tags.IA5_STRING));
-        mAsn1.defineConstant("UTC_TIME",         runtime.newFixnum(Tags.UTC_TIME));
-        mAsn1.defineConstant("GENERALIZED_TIME", runtime.newFixnum(Tags.GENERALIZED_TIME));
-        mAsn1.defineConstant("GRAPHIC_STRING",   runtime.newFixnum(Tags.GRAPHIC_STRING));
-        mAsn1.defineConstant("ISO64_STRING",     runtime.newFixnum(Tags.ISO64_STRING));
-        mAsn1.defineConstant("GENERAL_STRING",   runtime.newFixnum(Tags.GENERAL_STRING));
-        mAsn1.defineConstant("UNIVERSAL_STRING", runtime.newFixnum(Tags.UNIVERSAL_STRING));
-        mAsn1.defineConstant("BMP_STRING",       runtime.newFixnum(Tags.BMP_STRING));
-        
-        Parser.createParser(runtime, mAsn1);
-        Header.createHeader(runtime, mAsn1);
-    }
-    
-    
-    
+        Asn1.createAsn1(runtime, krypt, kryptError);
+    }    
 }
