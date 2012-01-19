@@ -30,12 +30,12 @@
 package impl.krypt.asn1.parser;
 
 import impl.krypt.asn1.ParseException;
-import java.io.FilterInputStream;
-import java.io.IOException;
-import java.io.InputStream;
 import impl.krypt.asn1.ParsedHeader;
 import impl.krypt.asn1.Parser;
 import impl.krypt.asn1.Tags;
+import java.io.FilterInputStream;
+import java.io.IOException;
+import java.io.InputStream;
 
 
 /**
@@ -88,13 +88,13 @@ class ChunkInputStream extends FilterInputStream {
             case NEW_HEADER: 
                 readNewHeader(); //fallthrough
             case PROCESS_TAG: {
-                int b = readSingleHeaderByte(currentHeader.getParsedTag().getEncoding(),
+                int b = readSingleHeaderByte(currentHeader.getTag().getEncoding(),
                                             State.PROCESS_LENGTH);
                 if (!valuesOnly)
                     return b;
             }
             case PROCESS_LENGTH: {
-                int b = readSingleHeaderByte(currentHeader.getParsedLength().getEncoding(),
+                int b = readSingleHeaderByte(currentHeader.getLength().getEncoding(),
                                               State.PROCESS_VALUE);
                 checkDone();
                 if (!valuesOnly)
@@ -111,7 +111,7 @@ class ChunkInputStream extends FilterInputStream {
         //if state is PROCESS_VALUE, this means that the tag bytes
         //have been consumed. As an EOC contains no value, we are
         //done
-        if (currentHeader.getTag() == Tags.END_OF_CONTENTS &&
+        if (currentHeader.getTag().getTag() == Tags.END_OF_CONTENTS &&
             state == State.PROCESS_VALUE) {
             state = State.DONE;
         }
@@ -147,13 +147,13 @@ class ChunkInputStream extends FilterInputStream {
     }
     
     private int readMultipleBytesSingleElement(byte[] b, int off, int len) throws IOException {
-        int read = 0, totalRead = 0;
+        int read, totalRead = 0;
         
         switch (state) {
             case NEW_HEADER: 
                 readNewHeader(); //fallthrough
             case PROCESS_TAG: {
-                read = readHeaderBytes(currentHeader.getParsedTag().getEncoding(),
+                read = readHeaderBytes(currentHeader.getTag().getEncoding(),
                                        State.PROCESS_LENGTH, b, off, len);
                 if (!valuesOnly) {
                     totalRead += read;
@@ -163,7 +163,7 @@ class ChunkInputStream extends FilterInputStream {
                 }
             } //fallthrough
             case PROCESS_LENGTH: {
-                read = readHeaderBytes(currentHeader.getParsedLength().getEncoding(),
+                read = readHeaderBytes(currentHeader.getLength().getEncoding(),
                                            State.PROCESS_VALUE, b, off, len);
                 
                 checkDone();

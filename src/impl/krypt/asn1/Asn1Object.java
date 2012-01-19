@@ -29,22 +29,42 @@
  */
 package impl.krypt.asn1;
 
+import java.io.IOException;
+import java.io.OutputStream;
 
 /**
  * 
  * @author <a href="mailto:Martin.Bosslet@googlemail.com">Martin Bosslet</a>
  */
-public abstract class Constructed<I extends Iterable<Asn1>> implements Asn1 {
+public class Asn1Object {
     
-    private final I content;
-    
-    protected Constructed(I content) {
-	if (content == null) throw new NullPointerException();
-        this.content = content;
-    }
-    
-    public I getContent() {
-        return content;
+    private Header header;
+    private byte[] value;
+
+    public Asn1Object(Header header, byte[] value) {
+        this.header = header;
+        this.value = value;
     }
 
+    public Header getHeader() {
+        return header;
+    }
+
+    public byte[] getValue() {
+        return value;
+    }
+    
+    public void setValue(byte[] value) {
+        this.value = value;
+    }
+    
+    public void invalidateValue() {
+        this.value = null;
+    }
+    
+    public void encodeTo(OutputStream out) throws IOException {
+        header.encodeTo(out);
+        if (value != null)
+            out.write(value);
+    }
 }

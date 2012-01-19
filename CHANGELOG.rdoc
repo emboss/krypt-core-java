@@ -1,3 +1,6 @@
+=== 0.1.0 / 2012-01-19 [emboss]
+* Add Asn1 class
+
 === 0.1.0 / 2012-01-14 [emboss]
 * Adapt to changes in krypt-core
 * Rename jkrypt to kryptcore

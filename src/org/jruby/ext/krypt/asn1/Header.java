@@ -29,9 +29,11 @@
  */
 package org.jruby.ext.krypt.asn1;
 
+import impl.krypt.asn1.Length;
 import impl.krypt.asn1.ParseException;
 import impl.krypt.asn1.ParsedHeader;
-import impl.krypt.asn1.SerializationException;
+import impl.krypt.asn1.SerializeException;
+import impl.krypt.asn1.Tag;
 import impl.krypt.asn1.TagClass;
 import java.io.ByteArrayOutputStream;
 import java.io.InputStream;
@@ -40,7 +42,6 @@ import org.jruby.Ruby;
 import org.jruby.RubyBoolean;
 import org.jruby.RubyClass;
 import org.jruby.RubyEncoding;
-import org.jruby.RubyFixnum;
 import org.jruby.RubyIO;
 import org.jruby.RubyModule;
 import org.jruby.RubyObject;
@@ -81,15 +82,17 @@ public class Header extends RubyObject {
     
         this.h = h;
         
-        this.tag = RubyFixnum.newFixnum(runtime, h.getTag());
-        this.tagClass = tagClassFor(runtime, h.getTagClass());
-        this.isConstructed = RubyBoolean.newBoolean(runtime, h.isConstructed());
-        this.isInfLen = RubyBoolean.newBoolean(runtime, h.isInfiniteLength());
-        this.len = RubyFixnum.newFixnum(runtime, h.getLength());
-        this.hlen = RubyFixnum.newFixnum(runtime, h.getHeaderLength());
+        Tag t = h.getTag();
+        Length l = h.getLength();
+        this.tag = runtime.newFixnum(t.getTag());
+        this.tagClass = tagClassFor(runtime, t.getTagClass());
+        this.isConstructed = runtime.newBoolean(t.isConstructed());
+        this.isInfLen = runtime.newBoolean(l.isInfiniteLength());
+        this.len = runtime.newFixnum(l.getLength());
+        this.hlen = runtime.newFixnum(h.getHeaderLength());
     }
     
-    private static IRubyObject tagClassFor(Ruby runtime, TagClass tc) {
+    static IRubyObject tagClassFor(Ruby runtime, TagClass tc) {
         switch(tc) {
             case UNIVERSAL:
                 return RubySymbol.newSymbol(runtime, TagClass.UNIVERSAL.name());
@@ -142,7 +145,7 @@ public class Header extends RubyObject {
             h.encodeTo(out);
             return this;
         }
-        catch (SerializationException ex) {
+        catch (SerializeException ex) {
             throw Errors.newSerializeError(runtime, ex.getMessage());
         }
     }
@@ -156,7 +159,7 @@ public class Header extends RubyObject {
             h.encodeTo(baos);
             return runtime.newString(new ByteList(baos.toByteArray(), false));
         }
-        catch (SerializationException ex) {
+        catch (SerializeException ex) {
             throw Errors.newSerializeError(runtime, ex.getMessage());
         }
     }
@@ -209,13 +212,15 @@ public class Header extends RubyObject {
     
     @JRubyMethod
     public IRubyObject to_s(ThreadContext ctx) {
+        Tag t = h.getTag();
+        Length l = h.getLength();
         String s = new StringBuilder()
-                .append("Tag: ").append(h.getTag())
-                .append(" Tag Class: ").append(h.getTagClass().name())
-                .append(" Length: ").append(h.getLength())
+                .append("Tag: ").append(t.getTag())
+                .append(" Tag Class: ").append(t.getTagClass().name())
+                .append(" Length: ").append(l.getLength())
                 .append(" Header Length: ").append(h.getHeaderLength())
-                .append(" Constructed: ").append(h.isConstructed())
-                .append(" Infinite Length: ").append(h.isInfiniteLength())
+                .append(" Constructed: ").append(t.isConstructed())
+                .append(" Infinite Length: ").append(l.isInfiniteLength())
                 .toString();
         return ctx.getRuntime().newString(s);
     }

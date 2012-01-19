@@ -27,24 +27,61 @@
 * the provisions above, a recipient may use your version of this file under
 * the terms of any one of the CPL, the GPL or the LGPL.
  */
-package impl.krypt.asn1.encoder;
+package impl.krypt.asn1;
 
-import java.io.InputStream;
-import impl.krypt.asn1.Tags;
+import java.io.IOException;
+import java.io.OutputStream;
 
 
 /**
  * 
  * @author <a href="mailto:Martin.Bosslet@googlemail.com">Martin Bosslet</a>
  */
-public class InfiniteLengthOctetString extends InfiniteLengthStreamingValue {
-
-    public InfiniteLengthOctetString(InputStream source) {
-        super(source, Tags.OCTET_STRING);
-    }
-
-    public InfiniteLengthOctetString(InputStream source, int chunkSize) {
-        super(source, Tags.OCTET_STRING, chunkSize);
+public class EncodableHeader implements Header {
+    
+    private final Tag tag;
+    private final Length length;
+    
+    public EncodableHeader(int tag,
+                           TagClass tagClass,
+                           boolean isConstructed,
+                           boolean isInfinite) {
+        this(new Tag(tag, tagClass, isConstructed), new Length(isInfinite));
     }
     
+    public EncodableHeader(Tag tag, Length length) {
+        if (tag == null) throw new NullPointerException();
+        if (length == null) throw new NullPointerException();
+        
+        this.tag = tag;
+        this.length = length;
+    }
+
+    @Override
+    public void encodeTo(OutputStream out) {
+        try {
+            out.write(tag.getEncoding());
+            out.write(length.getEncoding());
+        }
+        catch (IOException ex) {
+            throw new SerializeException(ex);
+        }
+    }
+
+    @Override
+    public int getHeaderLength() {
+        byte[] tagEncoding = tag.getEncoding();
+        byte[] lengthEncoding = length.getEncoding();
+        return tagEncoding.length + lengthEncoding.length;
+    }
+
+    @Override
+    public Length getLength() {
+        return length;
+    }
+
+    @Override
+    public Tag getTag() {
+        return tag;
+    }
 }

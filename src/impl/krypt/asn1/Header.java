@@ -42,11 +42,8 @@ public interface Header {
     public static final byte COMPLEX_TAG_MASK     = (byte)0x1f;
     public static final byte INFINITE_LENGTH_MASK = (byte)0x80;
     
-    public int getTag();
-    public TagClass getTagClass();
-    public boolean isConstructed();
-    public boolean isInfiniteLength();
-    public int getLength();
+    public Tag getTag();
+    public Length getLength();
     public int getHeaderLength();
     
     public void encodeTo(OutputStream out);

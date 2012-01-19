@@ -29,16 +29,16 @@
  */
 package impl.krypt.asn1.parser;
 
+import impl.krypt.asn1.Header;
+import impl.krypt.asn1.Length;
 import impl.krypt.asn1.ParseException;
+import impl.krypt.asn1.ParsedHeader;
+import impl.krypt.asn1.Parser;
+import impl.krypt.asn1.Tag;
+import impl.krypt.asn1.TagClass;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
-import impl.krypt.asn1.GenericAsn1.Length;
-import impl.krypt.asn1.GenericAsn1.Tag;
-import impl.krypt.asn1.Header;
-import impl.krypt.asn1.Parser;
-import impl.krypt.asn1.ParsedHeader;
-import impl.krypt.asn1.TagClass;
 
 
 /**

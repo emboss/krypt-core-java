@@ -49,6 +49,10 @@ public class Errors {
         return newError(rt, "Krypt::Asn1::SerializeError", message);
     }
     
+    public static RaiseException newAsn1Error(Ruby rt, String message) {
+        return newError(rt, "Krypt::Asn1::Asn1Error", message);
+    }
+    
     public static RaiseException newError(Ruby rt, String path, String message) {
         return new RaiseException(rt, getClassFromPath(rt, path), message, true);
     }

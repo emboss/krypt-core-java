@@ -32,7 +32,6 @@ package org.jruby.ext.krypt.asn1;
 import impl.krypt.asn1.ParseException;
 import impl.krypt.asn1.ParsedHeader;
 import impl.krypt.asn1.ParserFactory;
-import java.io.ByteArrayInputStream;
 import java.io.InputStream;
 import org.jruby.Ruby;
 import org.jruby.RubyClass;
@@ -52,6 +51,7 @@ import org.jruby.runtime.builtin.IRubyObject;
 public class Parser extends RubyObject {
     
     private static ObjectAllocator PARSER_ALLOCATOR = new ObjectAllocator() {
+        @Override
         public IRubyObject allocate(Ruby runtime, RubyClass type) {
             return new Parser(runtime, type);
         }

@@ -29,17 +29,18 @@
  */
 package impl.krypt.asn1.parser;
 
+import impl.krypt.asn1.Asn1Object;
+import impl.krypt.asn1.EncodableHeader;
+import impl.krypt.asn1.Header;
+import impl.krypt.asn1.Length;
 import impl.krypt.asn1.ParseException;
+import impl.krypt.asn1.ParsedHeader;
+import impl.krypt.asn1.SerializeException;
+import impl.krypt.asn1.Tag;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
-
-import impl.krypt.asn1.GenericAsn1.Length;
-import impl.krypt.asn1.GenericAsn1.Tag;
-import impl.krypt.asn1.ParsedHeader;
-import impl.krypt.asn1.SerializationException;
-import impl.krypt.asn1.TagClass;
 
 /**
  * 
@@ -128,7 +129,7 @@ class ParsedHeaderImpl implements ParsedHeader {
     private byte[] consume(InputStream stream) {
         
         byte[] buf = new byte[8192];
-        int read = 0;
+        int read;
         ByteArrayOutputStream baos = new ByteArrayOutputStream();
         
         try {
@@ -142,37 +143,28 @@ class ParsedHeaderImpl implements ParsedHeader {
         
         return baos.toByteArray();
     }
+
+    @Override
+    public Length getLength() {
+        return length;
+    }
+
+    @Override
+    public Tag getTag() {
+        return tag;
+    }
     
-    @Override
-    public int getTag() {
-	return tag.getTag();
-    }
-
-    @Override
-    public TagClass getTagClass() {
-	return tag.getTagClass();
-    }
-
-    @Override
-    public boolean isConstructed() {
-	return tag.isConstructed();
-    }
-
-    @Override
-    public boolean isInfiniteLength() {
-	return length.isInfiniteLength();
-    }
-
-    @Override
-    public int getLength() {
-	return length.getLength();
-    }
-
     @Override
     public int getHeaderLength() {
 	return tag.getEncoding().length + length.getEncoding().length;
     }
 
+    @Override
+    public Asn1Object getObject() {
+        Header h = new EncodableHeader(tag, length);
+        return new Asn1Object(h, getValue());
+    }
+    
     @Override
     public void encodeTo(OutputStream out) {
 	try {
@@ -180,17 +172,7 @@ class ParsedHeaderImpl implements ParsedHeader {
             out.write(length.getEncoding());
         }
         catch (IOException ex) {
-            throw new SerializationException(ex);
+            throw new SerializeException(ex);
         }
-    }
-
-    @Override
-    public Length getParsedLength() {
-        return length;
-    }
-
-    @Override
-    public Tag getParsedTag() {
-        return tag;
     }
 }
