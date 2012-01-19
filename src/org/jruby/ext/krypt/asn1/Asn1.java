@@ -58,7 +58,6 @@ import org.jruby.ext.krypt.Streams;
 import org.jruby.ext.krypt.asn1.Asn1DataClasses.Asn1BitString;
 import org.jruby.ext.krypt.asn1.Asn1DataClasses.Asn1BmpString;
 import org.jruby.ext.krypt.asn1.Asn1DataClasses.Asn1Boolean;
-import org.jruby.ext.krypt.asn1.Asn1DataClasses.Asn1Constructive;
 import org.jruby.ext.krypt.asn1.Asn1DataClasses.Asn1EndOfContents;
 import org.jruby.ext.krypt.asn1.Asn1DataClasses.Asn1Enumerated;
 import org.jruby.ext.krypt.asn1.Asn1DataClasses.Asn1GeneralString;
@@ -71,7 +70,6 @@ import org.jruby.ext.krypt.asn1.Asn1DataClasses.Asn1Null;
 import org.jruby.ext.krypt.asn1.Asn1DataClasses.Asn1NumericString;
 import org.jruby.ext.krypt.asn1.Asn1DataClasses.Asn1ObjectId;
 import org.jruby.ext.krypt.asn1.Asn1DataClasses.Asn1OctetString;
-import org.jruby.ext.krypt.asn1.Asn1DataClasses.Asn1Primitive;
 import org.jruby.ext.krypt.asn1.Asn1DataClasses.Asn1PrintableString;
 import org.jruby.ext.krypt.asn1.Asn1DataClasses.Asn1Sequence;
 import org.jruby.ext.krypt.asn1.Asn1DataClasses.Asn1Set;
@@ -110,6 +108,40 @@ public class Asn1 {
             codec = null;
         codec = null; /* TODO */
         return codec;
+    }
+    
+    static void initInternal(Asn1Data data,
+                              int tag,
+                              TagClass tagClass,
+                              boolean isConstructed,
+                              boolean isInfinite)
+    {
+        EncodableHeader h = new EncodableHeader(tag, tagClass, isConstructed, isInfinite);
+        data.object = new Asn1Object(h, null);
+        data.codec = codecFor(tag, tagClass);
+    }
+    
+    static void defaultInitialize(Asn1Data data,
+                                          Ruby runtime, 
+                                          IRubyObject value, 
+                                          IRubyObject tag, 
+                                          IRubyObject tag_class, 
+                                          boolean isConstructed) {
+        if(!(tag_class instanceof RubySymbol)) {
+            throw Errors.newAsn1Error(runtime, "tag_class must be a symbol");
+        }
+        int itag = RubyNumeric.fix2int(tag);
+        TagClass tc = TagClass.valueOf(tag_class.toString());
+        
+        initInternal(data, 
+                    itag, 
+                    tc, 
+                    isConstructed, 
+                    false);
+
+        data.tag = tag;
+        data.tagClass = tag_class;
+        data.value = value;
     }
     
     public static class Asn1Data extends RubyObject {
@@ -219,17 +251,17 @@ public class Asn1 {
         }
         
         @JRubyMethod
-        public IRubyObject tag() {
+        public synchronized IRubyObject tag() {
             return tag;
         }
         
         @JRubyMethod
-        public IRubyObject tag_class() {
+        public synchronized IRubyObject tag_class() {
             return tagClass;
         }
         
         @JRubyMethod
-        public IRubyObject infinite_length() {
+        public synchronized IRubyObject infinite_length() {
             return infiniteLength;
         }
         
@@ -277,7 +309,7 @@ public class Asn1 {
         }
         
         @JRubyMethod(name={"value="})
-        public synchronized IRubyObject set_value(IRubyObject value) {
+        public synchronized IRubyObject set_value(ThreadContext ctx, IRubyObject value) {
             object.getHeader().getLength().setLength(0);
             object.invalidateValue();
             boolean isConstructed = value instanceof RubyArray;
@@ -302,22 +334,27 @@ public class Asn1 {
             return rt.newString(new ByteList(baos.toByteArray(), false));
         }
         
-        protected void encodeToInternal(ThreadContext ctx, OutputStream out) {
+        final void encodeToInternal(ThreadContext ctx, OutputStream out) {
             try {
-                byte[] rawValue = object.getValue();
-                if (rawValue == null) {
-                    Tag t = object.getHeader().getTag();
-                    if (t.getTagClass().equals(TagClass.UNIVERSAL) &&
-                        (t.getTag() == Tags.NULL || t.getTag() == Tags.END_OF_CONTENTS)) {
-                        object.encodeTo(out);
-                    } else {
-                        encodeTo(ctx, value, out);
-                    }
-                } else {
+                if (object.getValue() == null)
+                    computeAndEncode(ctx, out);
+                else
                     object.encodeTo(out);
-                }
             } catch (IOException ex) {
                 throw Errors.newSerializeError(ctx.getRuntime(), ex.getMessage());
+            }
+        }
+        
+        private void computeAndEncode(ThreadContext ctx, OutputStream out) throws IOException {
+            Tag t = object.getHeader().getTag();
+            int itag = t.getTag();
+            if (t.getTagClass().equals(TagClass.UNIVERSAL) &&
+                (itag == Tags.NULL || itag == Tags.END_OF_CONTENTS)) {
+                /* Treat NULL and END_OF_CONTENTS exceptionally. No additional
+                 * encoding step needed since they have no value to encode */
+                 object.encodeTo(out);
+            } else {
+                encodeTo(ctx, value, out);
             }
         }
         
@@ -342,40 +379,6 @@ public class Asn1 {
         }
     }
     
-    static void initInternal(Asn1Data data,
-                              int tag,
-                              TagClass tagClass,
-                              boolean isConstructed,
-                              boolean isInfinite)
-    {
-        EncodableHeader h = new EncodableHeader(tag, tagClass, isConstructed, isInfinite);
-        data.object = new Asn1Object(h, null);
-        data.codec = codecFor(tag, tagClass);
-    }
-    
-    static void defaultInitialize(Asn1Data data,
-                                          Ruby runtime, 
-                                          IRubyObject value, 
-                                          IRubyObject tag, 
-                                          IRubyObject tag_class, 
-                                          boolean isConstructed) {
-        if(!(tag_class instanceof RubySymbol)) {
-            throw Errors.newAsn1Error(runtime, "tag_class must be a symbol");
-        }
-        int itag = RubyNumeric.fix2int(tag);
-        TagClass tc = TagClass.valueOf(tag_class.toString());
-        
-        initInternal(data, 
-                    itag, 
-                    tc, 
-                    isConstructed, 
-                    false);
-
-        data.tag = tag;
-        data.tagClass = tag_class;
-        data.value = value;
-    }
-    
     public static class Asn1Primitive extends Asn1Data {
         
         static ObjectAllocator PRIMITIVE_ALLOCATOR = new ObjectAllocator() {
@@ -385,7 +388,7 @@ public class Asn1 {
             }
         };
         
-        private Asn1Primitive(Ruby runtime, RubyClass type) {
+        protected Asn1Primitive(Ruby runtime, RubyClass type) {
             super(runtime, type);
         }
         
@@ -435,7 +438,7 @@ public class Asn1 {
             }
         };
         
-        private Asn1Constructive(Ruby runtime, RubyClass type) {
+        protected Asn1Constructive(Ruby runtime, RubyClass type) {
             super(runtime, type);
         }
         
@@ -443,9 +446,17 @@ public class Asn1 {
             super(runtime, type, object);
         }
         
+        @Override
+        @JRubyMethod(name={"value="})
+        public IRubyObject set_value(ThreadContext ctx, IRubyObject value) {
+            if (!(value instanceof RubyArray))
+                throw ctx.getRuntime().newArgumentError(("Value for Asn1Constructive must be an array"));
+            return super.set_value(ctx, value);
+        }
+        
         @JRubyMethod(frame=true)
         public IRubyObject each(ThreadContext ctx, Block block) {
-            RubyArray arr = (RubyArray)callMethod(ctx, "value");
+            RubyArray arr = (RubyArray)value(ctx);
             for (IRubyObject obj : arr.toJavaArray()) {
                 block.yield(ctx, obj);
             }

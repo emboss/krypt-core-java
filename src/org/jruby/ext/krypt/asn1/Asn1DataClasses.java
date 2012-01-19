@@ -30,28 +30,17 @@
 package org.jruby.ext.krypt.asn1;
 
 import impl.krypt.asn1.Asn1Object;
-import impl.krypt.asn1.Length;
-import impl.krypt.asn1.ParsedHeader;
 import impl.krypt.asn1.TagClass;
 import impl.krypt.asn1.Tags;
-import java.io.ByteArrayInputStream;
-import java.io.IOException;
-import java.io.InputStream;
-import java.io.OutputStream;
-import java.util.ArrayList;
-import java.util.List;
 import org.jruby.Ruby;
-import org.jruby.RubyArray;
 import org.jruby.RubyClass;
 import org.jruby.anno.JRubyMethod;
-import org.jruby.ext.krypt.Errors;
-import org.jruby.ext.krypt.asn1.Asn1.Asn1Codec;
+import org.jruby.ext.krypt.asn1.Asn1.Asn1Constructive;
 import org.jruby.ext.krypt.asn1.Asn1.Asn1Data;
-import org.jruby.runtime.Block;
+import org.jruby.ext.krypt.asn1.Asn1.Asn1Primitive;
 import org.jruby.runtime.ObjectAllocator;
 import org.jruby.runtime.ThreadContext;
 import org.jruby.runtime.builtin.IRubyObject;
-
 
 /**
  * 
@@ -101,8 +90,8 @@ public class Asn1DataClasses {
             super(runtime, type, object);
         }
         
-        @JRubyMethod
         @Override
+        @JRubyMethod
         public IRubyObject initialize(ThreadContext ctx) {
             Ruby runtime = ctx.getRuntime();
             Asn1.defaultInitialize(this, 

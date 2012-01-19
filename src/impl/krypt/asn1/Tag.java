@@ -124,9 +124,9 @@ public class Tag {
     }
 
     static int determineNumberOfShifts(int value, int shiftBy) {
-        int i, tmp = value;
-        for (i = 0; tmp > 0; i++) {
-            tmp >>= shiftBy;
+        int i;
+        for (i = 0; value > 0; i++) {
+            value >>= shiftBy;
         }
         return i;
     }
