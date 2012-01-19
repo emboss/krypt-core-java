@@ -1,4 +1,7 @@
 === 0.1.0 / 2012-01-19 [emboss]
+* Slight refactoring in Asn1
+
+=== 0.1.0 / 2012-01-19 [emboss]
 * Add Asn1 class
 
 === 0.1.0 / 2012-01-14 [emboss]
