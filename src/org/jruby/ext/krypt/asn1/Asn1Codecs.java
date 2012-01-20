@@ -62,12 +62,12 @@ public class Asn1Codecs {
 
         @Override
         public byte[] encode(Ruby runtime, IRubyObject value) {
-            throw new UnsupportedOperationException("Not supported yet.");
+            return null;
         }
 
         @Override
         public IRubyObject decode(Ruby runtime, byte[] value) {
-            throw new UnsupportedOperationException("Not supported yet.");
+            return runtime.getNil();
         }
     };
     
@@ -116,12 +116,12 @@ public class Asn1Codecs {
 
         @Override
         public byte[] encode(Ruby runtime, IRubyObject value) {
-            throw new UnsupportedOperationException("Not supported yet.");
+            return null;
         }
 
         @Override
         public IRubyObject decode(Ruby runtime, byte[] value) {
-            throw new UnsupportedOperationException("Not supported yet.");
+            return runtime.getNil();
         }
     };
     
