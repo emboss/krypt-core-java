@@ -29,9 +29,17 @@
  */
 package org.jruby.ext.krypt.asn1;
 
+import java.io.ByteArrayOutputStream;
+import java.io.IOException;
+import java.math.BigInteger;
 import org.jruby.Ruby;
+import org.jruby.RubyBignum;
+import org.jruby.RubyFixnum;
+import org.jruby.RubyNumeric;
+import org.jruby.ext.krypt.Errors;
 import org.jruby.ext.krypt.asn1.Asn1.Asn1Codec;
 import org.jruby.runtime.builtin.IRubyObject;
+import org.jruby.runtime.marshal.MarshalStream;
 import org.jruby.util.ByteList;
 
 /**
@@ -75,12 +83,22 @@ public class Asn1Codecs {
 
         @Override
         public byte[] encode(Ruby runtime, IRubyObject value) {
-            throw new UnsupportedOperationException("Not supported yet.");
+            byte[] b = new byte[1];
+            if (!value.isTrue())
+                b[0] = (byte)0x00;
+            else
+                b[0] = (byte)0xff;
+            return b;
         }
 
         @Override
         public IRubyObject decode(Ruby runtime, byte[] value) {
-            throw new UnsupportedOperationException("Not supported yet.");
+            if (value.length != 1)
+                throw Errors.newAsn1Error(runtime, "Boolean value with length != 1 found");
+            if (value[0] == ((byte)0x00))
+                return runtime.getFalse();
+            else
+                return runtime.getTrue();
         }
     };
     
@@ -88,12 +106,25 @@ public class Asn1Codecs {
 
         @Override
         public byte[] encode(Ruby runtime, IRubyObject value) {
-            throw new UnsupportedOperationException("Not supported yet.");
+            if (value instanceof RubyFixnum) {
+                return BigInteger.valueOf(RubyNumeric.num2long(value)).toByteArray();
+            } else if (value instanceof RubyBignum) {
+                ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                try {
+                    MarshalStream ms = new MarshalStream(runtime, baos, -1);
+                    RubyBignum.marshalTo((RubyBignum)value, ms);
+                    return baos.toByteArray();
+                } catch (IOException ex) {
+                    throw Errors.newAsn1Error(runtime, ex.getMessage());
+                }
+            } else {
+                throw Errors.newAsn1Error(runtime, "Value is not a number");
+            }
         }
 
         @Override
         public IRubyObject decode(Ruby runtime, byte[] value) {
-            throw new UnsupportedOperationException("Not supported yet.");
+            return RubyBignum.newBignum(runtime, new BigInteger(value));
         }
     };
     
@@ -101,12 +132,21 @@ public class Asn1Codecs {
 
         @Override
         public byte[] encode(Ruby runtime, IRubyObject value) {
-            throw new UnsupportedOperationException("Not supported yet.");
+            IRubyObject unusedBitsIv = value.getInstanceVariables().getInstanceVariable("unused_bits");
+            int unusedBits = RubyNumeric.fix2int(unusedBitsIv);
+            byte[] bytes = value.convertToString().getBytes();
+            byte[] ret = new byte[bytes.length + 1];
+            ret[0] = (byte)(unusedBits & 0xff);
+            System.arraycopy(bytes, 0, ret, 1, bytes.length);
+            return ret;
         }
 
         @Override
         public IRubyObject decode(Ruby runtime, byte[] value) {
-            throw new UnsupportedOperationException("Not supported yet.");
+            int unusedBits = value[0] & 0xff;
+            IRubyObject ret = runtime.newString(new ByteList(value, 1, value.length - 1));
+            ret.getInstanceVariables().setInstanceVariable("unused_bits", RubyNumeric.int2fix(runtime, unusedBits));
+            return ret;
         }
     };
     
@@ -138,18 +178,7 @@ public class Asn1Codecs {
         }
     };
     
-    private static final Asn1Codec ENUMERATED = new Asn1Codec() {
-
-        @Override
-        public byte[] encode(Ruby runtime, IRubyObject value) {
-            throw new UnsupportedOperationException("Not supported yet.");
-        }
-
-        @Override
-        public IRubyObject decode(Ruby runtime, byte[] value) {
-            throw new UnsupportedOperationException("Not supported yet.");
-        }
-    };
+    private static final Asn1Codec ENUMERATED = INTEGER;
     
     private static final Asn1Codec UTF8_STRING = new Asn1Codec() {
 

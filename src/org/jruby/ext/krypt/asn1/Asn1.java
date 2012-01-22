@@ -82,6 +82,7 @@ import org.jruby.runtime.Block;
 import org.jruby.runtime.ObjectAllocator;
 import org.jruby.runtime.ThreadContext;
 import org.jruby.runtime.builtin.IRubyObject;
+import org.jruby.runtime.builtin.InstanceVariables;
 import org.jruby.util.ByteList;
 
 /**
@@ -106,7 +107,6 @@ public class Asn1 {
             codec = Asn1Codecs.CODECS[tag];
         else
             codec = null;
-        codec = null; /* TODO */
         return codec;
     }
     
@@ -139,9 +139,13 @@ public class Asn1 {
                     isConstructed, 
                     false);
 
-        data.tag = tag;
-        data.tagClass = tag_class;
         data.value = value;
+        
+        InstanceVariables ivs = data.getInstanceVariables();
+        ivs.setInstanceVariable("tag", tag);
+        ivs.setInstanceVariable("tag_class", tag_class);
+        ivs.setInstanceVariable("value", value);
+        ivs.setInstanceVariable("infinite_length", runtime.getFalse());
     }
     
     public static class Asn1Data extends RubyObject {
@@ -160,9 +164,6 @@ public class Asn1 {
         private Asn1Object object;
         private Asn1Codec codec;
         
-        private IRubyObject tag;
-        private IRubyObject tagClass;
-        private IRubyObject infiniteLength;
         private IRubyObject value = null;
         
         static Asn1Data newAsn1Data(Ruby runtime, Asn1Object object) {
@@ -221,10 +222,12 @@ public class Asn1 {
             int itag = t.getTag();
             TagClass tc = t.getTagClass();
             Length length = h.getLength(); 
-            this.tag = runtime.newFixnum(itag);
-            this.tagClass = Header.tagClassFor(runtime, tc);
-            this.infiniteLength = runtime.newBoolean(length.isInfiniteLength());
             this.codec = codecFor(itag, tc);
+            
+            InstanceVariables ivs = getInstanceVariables();
+            ivs.setInstanceVariable("tag", runtime.newFixnum(itag));
+            ivs.setInstanceVariable("tag_class", Header.tagClassFor(runtime, tc));
+            ivs.setInstanceVariable("infinite_length", runtime.newBoolean(length.isInfiniteLength()));
         }
         
         @JRubyMethod
@@ -243,26 +246,30 @@ public class Asn1 {
                         isConstructed, 
                         false);
             
-            this.tag = tag;
-            this.tagClass = tag_class;
             this.value = value;
             
+            InstanceVariables ivs = getInstanceVariables();
+            ivs.setInstanceVariable("tag", tag);
+            ivs.setInstanceVariable("tag_class", tag_class);
+            ivs.setInstanceVariable("value", value);
+            ivs.setInstanceVariable("infinite_length", runtime.getFalse());
+        
             return this;
         }
         
         @JRubyMethod
         public synchronized IRubyObject tag() {
-            return tag;
+            return getInstanceVariables().getInstanceVariable("tag");
         }
         
         @JRubyMethod
         public synchronized IRubyObject tag_class() {
-            return tagClass;
+            return getInstanceVariables().getInstanceVariable("tag_class");
         }
         
         @JRubyMethod
         public synchronized IRubyObject infinite_length() {
-            return infiniteLength;
+            return getInstanceVariables().getInstanceVariable("infinite_length");
         }
         
         @JRubyMethod
@@ -275,18 +282,22 @@ public class Asn1 {
         
         @JRubyMethod(name={"tag="})
         public synchronized IRubyObject set_tag(IRubyObject value) {
+            InstanceVariables ivs = getInstanceVariables();
+            IRubyObject tag = ivs.getInstanceVariable("tag");
             if (tag == value)
                 return value;
             int itag = RubyNumeric.fix2int(value);
             Tag t = object.getHeader().getTag();
             t.setTag(itag);
             codec = codecFor(itag, t.getTagClass());
-            this.tag = value;
+            ivs.setInstanceVariable("tag", value);
             return value;
         }
         
         @JRubyMethod(name={"tag_class="})
         public synchronized IRubyObject set_tag_class(ThreadContext ctx, IRubyObject value) {
+            InstanceVariables ivs = getInstanceVariables();
+            IRubyObject tagClass = ivs.getInstanceVariable("tag_class");
             if (tagClass == value)
                 return value;
             if(!(value instanceof RubySymbol))
@@ -295,16 +306,18 @@ public class Asn1 {
             Tag t = object.getHeader().getTag();
             t.setTagClass(tc);
             codec = codecFor(t.getTag(), tc);
-            this.tagClass = value;
+            ivs.setInstanceVariable("tag_class", value);
             return value;
         }
         
         @JRubyMethod(name={"infinite_length="})
         public synchronized IRubyObject set_infinite_length(IRubyObject value) {
+            InstanceVariables ivs = getInstanceVariables();
+            IRubyObject tag = ivs.getInstanceVariable("infinite_length");
             boolean boolVal = value.isTrue();
             Length l = object.getHeader().getLength();
             l.setInfiniteLength(boolVal);
-            this.infiniteLength = value;
+            ivs.setInstanceVariable("infinite_length", value);
             return value;
         }
         
@@ -315,6 +328,7 @@ public class Asn1 {
             boolean isConstructed = value instanceof RubyArray;
             object.getHeader().getTag().setConstructed(isConstructed);
             this.value = value;
+            getInstanceVariables().setInstanceVariable("value", value);
             return value;
         }
         

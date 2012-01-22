@@ -1,3 +1,7 @@
+=== 0.1.0 / 2012-01-22 [emboss]
+* Continued implementing Asn.1 codecs
+* Set instance variables for Asn1Data
+
 === 0.1.0 / 2012-01-19 [emboss]
 * Slight refactoring in Asn1
 
