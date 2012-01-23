@@ -53,6 +53,8 @@
     <antcall target="add-emma-jars"/>
   </target>
 
+  <target name="coverage-jar" depends="enable-coverage,jar" description="Build a JAR file with coverage support" />
+
   <target name="enable-coverage" description="Enable code coverage reporting for built artifacts.">
     <property name="coverage.enabled" value="true"/>
   </target>
@@ -95,14 +97,4 @@
       </report>
     </emma>
   </target>
-
-  <target name="load-rake-task">
-    <taskdef name="rake" classname="org.jruby.ant.Rake" classpath="${jruby.jar}" />
-  </target>
-
-  <target name="spec" depends="load-rake-task">
-    <rake task="spec"/>
-  </target>
-
-  <target name="coverage" depends="enable-coverage,jar,spec,coverage-report" description="Build jar for coverage and generate a coverage report of spec."/>
 </project>
