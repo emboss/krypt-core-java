@@ -32,10 +32,18 @@ package org.jruby.ext.krypt.asn1;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.math.BigInteger;
+import java.nio.charset.Charset;
+import org.jcodings.specific.UTF8Encoding;
+import org.joda.time.DateTime;
+import org.joda.time.DateTimeZone;
+import org.joda.time.format.DateTimeFormat;
+import org.joda.time.format.DateTimeFormatter;
 import org.jruby.Ruby;
 import org.jruby.RubyBignum;
 import org.jruby.RubyFixnum;
 import org.jruby.RubyNumeric;
+import org.jruby.RubyString;
+import org.jruby.RubyTime;
 import org.jruby.ext.krypt.Errors;
 import org.jruby.ext.krypt.asn1.Asn1.Asn1Codec;
 import org.jruby.runtime.builtin.IRubyObject;
@@ -75,6 +83,8 @@ public class Asn1Codecs {
 
         @Override
         public IRubyObject decode(Ruby runtime, byte[] value) {
+            if (!(value == null || value.length == 0))
+                throw Errors.newAsn1Error(runtime, "Invalid end of contents encoding");
             return runtime.getNil();
         }
     };
@@ -93,7 +103,7 @@ public class Asn1Codecs {
 
         @Override
         public IRubyObject decode(Ruby runtime, byte[] value) {
-            if (value.length != 1)
+            if (value == null || value.length != 1)
                 throw Errors.newAsn1Error(runtime, "Boolean value with length != 1 found");
             if (value[0] == ((byte)0x00))
                 return runtime.getFalse();
@@ -124,6 +134,8 @@ public class Asn1Codecs {
 
         @Override
         public IRubyObject decode(Ruby runtime, byte[] value) {
+            if (value == null)
+                throw Errors.newAsn1Error(runtime, "Invalid integer encoding");
             return RubyBignum.newBignum(runtime, new BigInteger(value));
         }
     };
@@ -143,6 +155,8 @@ public class Asn1Codecs {
 
         @Override
         public IRubyObject decode(Ruby runtime, byte[] value) {
+            if (value == null)
+                throw Errors.newAsn1Error(runtime, "Invalid bit string encoding");
             int unusedBits = value[0] & 0xff;
             IRubyObject ret = runtime.newString(new ByteList(value, 1, value.length - 1));
             ret.getInstanceVariables().setInstanceVariable("unused_bits", RubyNumeric.int2fix(runtime, unusedBits));
@@ -161,6 +175,8 @@ public class Asn1Codecs {
 
         @Override
         public IRubyObject decode(Ruby runtime, byte[] value) {
+            if (!(value == null || value.length == 0))
+                throw Errors.newAsn1Error(runtime, "Invalid null encoding");
             return runtime.getNil();
         }
     };
@@ -169,14 +185,91 @@ public class Asn1Codecs {
 
         @Override
         public byte[] encode(Ruby runtime, IRubyObject value) {
-            throw new UnsupportedOperationException("Not supported yet.");
-        }
+            ByteArrayOutputStream baos = new ByteArrayOutputStream();
+            long first, second, cur;
+            ObjectIdEncodeContext ctx = new ObjectIdEncodeContext(value.convertToString().getBytes(), runtime);
+            
+            if ((first = ctx.nextSubId()) == -1)
+                throw Errors.newAsn1Error(runtime, "Error while encoding object identifier");
+            if ((second = ctx.nextSubId()) == -1)
+                throw Errors.newAsn1Error(runtime, "Error while encoding object identifier");
+    
+            cur = 40 * first + second;
+            
+            try {
+                writeLong(baos, cur);
 
+                while ((cur = ctx.nextSubId()) != -1) {
+                    writeLong(baos, cur);
+                }
+            } catch (IOException ex) {
+                throw Errors.newAsn1Error(runtime, ex.getMessage());
+            }
+            
+            return baos.toByteArray();
+        }
+        
         @Override
         public IRubyObject decode(Ruby runtime, byte[] value) {
-            throw new UnsupportedOperationException("Not supported yet.");
+            if (value == null)
+                throw Errors.newAsn1Error(runtime, "Invalid object id encoding");
+            long first, second, cur;
+            ObjectIdParseContext ctx = new ObjectIdParseContext(value, runtime);
+            StringBuilder builder = new StringBuilder();
+            
+            if ((cur = ctx.parseNext()) == -1)
+                throw Errors.newAsn1Error(runtime, "Error while parsing object identifier");
+            first = determineFirst(cur);
+            second = cur - 40 * first;
+            builder.append(String.valueOf(first));
+            appendNumber(builder, second);
+            
+            while ((cur = ctx.parseNext()) != -1)
+                appendNumber(builder, cur);
+            
+            return runtime.newString(new ByteList(builder.toString().getBytes()));
+        }
+        
+        private void appendNumber(StringBuilder b, long cur) {
+            b.append('.')
+             .append(String.valueOf(cur));
+        }
+        
+        private long determineFirst(long combined) {
+            long f = 1;
+            while (40 * f < combined)
+                f++;
+            return f - 1;
         }
     };
+    
+    static int determineNumberOfShifts(long value, int shiftBy) {
+        int i;
+        for (i = 0; value > 0; i++) {
+            value >>= shiftBy;
+        }
+        return i;
+    }
+    
+    private static void writeLong(ByteArrayOutputStream baos, long cur) throws IOException {
+        if (cur == 0) {
+            baos.write(0);
+            return;
+        }
+
+        int numShifts = determineNumberOfShifts(cur, 7);
+        byte[] bytes = new byte[numShifts];
+
+        for (int i = numShifts - 1; i >= 0; i--) {
+            byte b = (byte)(cur & 0x7f);
+            if (i < numShifts - 1)
+                b |= 0x80;
+            bytes[i] = b;
+            cur >>= 7;
+        }
+
+        baos.write(bytes);
+    }
     
     private static final Asn1Codec ENUMERATED = INTEGER;
     
@@ -184,25 +277,47 @@ public class Asn1Codecs {
 
         @Override
         public byte[] encode(Ruby runtime, IRubyObject value) {
-            throw new UnsupportedOperationException("Not supported yet.");
+            RubyString s = value.convertToString();
+            s.associateEncoding(UTF8Encoding.INSTANCE);
+            return s.getBytes();
         }
 
         @Override
         public IRubyObject decode(Ruby runtime, byte[] value) {
-            throw new UnsupportedOperationException("Not supported yet.");
+            IRubyObject obj = DEFAULT.decode(runtime, value);
+            obj.asString().associateEncoding(UTF8Encoding.INSTANCE);
+            return obj;
         }
     };
+    
+    private static final DateTimeFormatter UTC_FORMATTER = DateTimeFormat.forPattern("yyMMddHHmmss'Z'").withZone(DateTimeZone.UTC);
+    private static final DateTimeFormatter GT_FORMATTER = DateTimeFormat.forPattern("yyyyMMddHHmmss'Z'").withZone(DateTimeZone.UTC);
+    
+    private static byte[] encodeTime(Ruby runtime, IRubyObject value, DateTimeFormatter formatter) {
+        if (!(value instanceof RubyTime))
+            throw Errors.newAsn1Error(runtime, "Value is not a time");
+        return ((RubyTime)value).getDateTime()
+                                .toString(formatter)
+                                .getBytes();
+    }
+    
+    private static IRubyObject decodeTime(Ruby runtime, byte[] value, DateTimeFormatter formatter) {
+        if (value == null)
+            throw Errors.newAsn1Error(runtime, "Invalid time encoding");
+        DateTime dateTime = formatter.parseDateTime(new String(value, Charset.forName("US-ASCII")));
+        return RubyTime.newTime(runtime, dateTime);
+    }
     
     private static final Asn1Codec UTC_TIME = new Asn1Codec() {
 
         @Override
         public byte[] encode(Ruby runtime, IRubyObject value) {
-            throw new UnsupportedOperationException("Not supported yet.");
+            return encodeTime(runtime, value, UTC_FORMATTER);
         }
 
         @Override
         public IRubyObject decode(Ruby runtime, byte[] value) {
-            throw new UnsupportedOperationException("Not supported yet.");
+            return decodeTime(runtime, value, UTC_FORMATTER);
         }
     };
     
@@ -210,12 +325,12 @@ public class Asn1Codecs {
 
         @Override
         public byte[] encode(Ruby runtime, IRubyObject value) {
-            throw new UnsupportedOperationException("Not supported yet.");
+            return encodeTime(runtime, value, GT_FORMATTER);
         }
 
         @Override
         public IRubyObject decode(Ruby runtime, byte[] value) {
-            throw new UnsupportedOperationException("Not supported yet.");
+            return decodeTime(runtime, value, GT_FORMATTER);
         }
     };
     
@@ -252,4 +367,78 @@ public class Asn1Codecs {
         OCTET_STRING,
         OCTET_STRING
     };
+    
+    private static class ObjectIdEncodeContext {
+        private final byte[] raw;
+        private final Ruby runtime;
+        private int offset = 0;
+
+        private static long ENCODE_LIMIT = Long.MAX_VALUE / 10;
+
+        public ObjectIdEncodeContext(byte[] raw, Ruby runtime) {
+            this.raw = raw;
+            this.runtime = runtime;
+        }
+        
+        public final long nextSubId() {
+            if (offset >= raw.length)
+                return -1;
+            
+            long ret = 0;
+            
+            char c = (char) (raw[offset] & 0xff);
+            if (c == '.')
+                throw Errors.newAsn1Error(runtime, "Sub identifier cannot start with '.'");
+            
+            while (offset < raw.length && (c = (char) (raw[offset] & 0xff)) != '.' ) {
+                if (c < '0' || c > '9')
+                    throw Errors.newAsn1Error(runtime, "Invalid character in object identifer: " + c);
+                if (ret > ENCODE_LIMIT)
+                    throw Errors.newAsn1Error(runtime, "Sub object identifier too large");
+                if (offset + 1 == Long.MAX_VALUE)
+                    throw Errors.newAsn1Error(runtime, "Object id value too large");
+                
+                ret *= 10;
+                ret += c - '0';
+                offset++;
+            }
+            
+            offset++; /* skip '.' */
+            return ret;
+        }
+    }
+    
+    private static class ObjectIdParseContext {
+        private final byte[] raw;
+        private final Ruby runtime;
+        int offset = 0;
+
+        private static long LIMIT_PARSE = Long.MAX_VALUE >> 7;
+        
+        public ObjectIdParseContext(byte[] raw, Ruby runtime) {
+            this.raw = raw;
+            this.runtime = runtime;
+        }
+        
+        public long parseNext() {
+            long num = 0;
+            
+            if (offset >= raw.length)
+                return -1;
+            
+            while ((raw[offset] & 0x80) > 0) {
+                if (num > LIMIT_PARSE)
+                    throw Errors.newAsn1Error(runtime, "Sub identifier too large");
+                num <<= 7;
+                num |= raw[offset++] & 0x7f;
+                if (offset >= raw.length)
+                    throw Errors.newAsn1Error(runtime, "Invalid object identifier encoding");
+            }
+            
+            num <<= 7;
+            num |= raw[offset++] & 0x7f;
+            
+            return num;
+        }
+    }
 }

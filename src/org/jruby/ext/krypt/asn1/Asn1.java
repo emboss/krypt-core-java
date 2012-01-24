@@ -313,7 +313,9 @@ public class Asn1 {
         @JRubyMethod(name={"infinite_length="})
         public synchronized IRubyObject set_infinite_length(IRubyObject value) {
             InstanceVariables ivs = getInstanceVariables();
-            IRubyObject tag = ivs.getInstanceVariable("infinite_length");
+            IRubyObject inflen = ivs.getInstanceVariable("infinite_length");
+            if (inflen == value)
+                return value;
             boolean boolVal = value.isTrue();
             Length l = object.getHeader().getLength();
             l.setInfiniteLength(boolVal);
