@@ -60,8 +60,8 @@ import org.jruby.util.ByteList;
  */
 public class Header extends RubyObject {
     
-    public static void createHeader(Ruby runtime, RubyModule mAsn1) {
-        mAsn1.defineClassUnder("Header", runtime.getObject(), ObjectAllocator.NOT_ALLOCATABLE_ALLOCATOR)
+    public static void createHeader(Ruby runtime, RubyModule mASN1) {
+        mASN1.defineClassUnder("Header", runtime.getObject(), ObjectAllocator.NOT_ALLOCATABLE_ALLOCATOR)
              .defineAnnotatedMethods(Header.class);
     }
     

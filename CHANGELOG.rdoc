@@ -1,4 +1,7 @@
 === 0.1.0 / 2012-01-24 [emboss]
+* Capitalize Asn1 and other acronyms
+
+=== 0.1.0 / 2012-01-24 [emboss]
 * Finished implementing Asn.1 codecs
 
 === 0.1.0 / 2012-01-22 [emboss]

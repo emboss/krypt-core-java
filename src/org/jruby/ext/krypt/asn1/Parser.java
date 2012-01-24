@@ -57,8 +57,8 @@ public class Parser extends RubyObject {
         }
     };
     
-    public static void createParser(Ruby runtime, RubyModule mAsn1) {
-        mAsn1.defineClassUnder("Parser", runtime.getObject(), PARSER_ALLOCATOR)
+    public static void createParser(Ruby runtime, RubyModule mASN1) {
+        mASN1.defineClassUnder("Parser", runtime.getObject(), PARSER_ALLOCATOR)
              .defineAnnotatedMethods(Parser.class);
     }
     
@@ -81,7 +81,7 @@ public class Parser extends RubyObject {
         Ruby runtime = ctx.getRuntime();
         InputStream in = asStream(runtime, io);
         RubyClass headerClass = ((RubyModule)runtime.getModule("Krypt")
-                                                .getConstant("Asn1"))
+                                                .getConstant("ASN1"))
                                                 .getClass("Header");
         
         return parseHeader(runtime, headerClass, in);

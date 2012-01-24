@@ -38,6 +38,7 @@ import org.jruby.runtime.load.BasicLibraryService;
  * @author <a href="mailto:Martin.Bosslet@googlemail.com">Martin Bosslet</a>
  */
 public class KryptcoreService implements BasicLibraryService {
+    @Override
     public boolean basicLoad(Ruby runtime) throws IOException {
         KryptCoreService.create(runtime);
         return true;

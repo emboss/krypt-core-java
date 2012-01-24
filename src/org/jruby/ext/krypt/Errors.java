@@ -42,15 +42,15 @@ public class Errors {
     private Errors() { }
     
     public static RaiseException newParseError(Ruby rt, String message) {
-        return newError(rt, "Krypt::Asn1::ParseError", message);
+        return newError(rt, "Krypt::ASN1::ParseError", message);
     }
     
     public static RaiseException newSerializeError(Ruby rt, String message) {
-        return newError(rt, "Krypt::Asn1::SerializeError", message);
+        return newError(rt, "Krypt::ASN1::SerializeError", message);
     }
     
-    public static RaiseException newAsn1Error(Ruby rt, String message) {
-        return newError(rt, "Krypt::Asn1::Asn1Error", message);
+    public static RaiseException newASN1Error(Ruby rt, String message) {
+        return newError(rt, "Krypt::ASN1::ASN1Error", message);
     }
     
     public static RaiseException newError(Ruby rt, String path, String message) {
