@@ -67,8 +67,8 @@ public class Asn1Codecs {
 
         @Override
         public IRubyObject decode(IRubyObject recv, Ruby runtime, byte[] value) {
-            if (value == null)
-                return runtime.getNil();
+            if (value == null || value.length == 0)
+                return runtime.newString();
             else
                 return runtime.newString(new ByteList(value, false));
         }
@@ -158,7 +158,7 @@ public class Asn1Codecs {
             if (value == null)
                 throw Errors.newASN1Error(runtime, "Invalid bit string encoding");
             int unusedBits = value[0] & 0xff;
-            IRubyObject ret = runtime.newString(new ByteList(value, 1, value.length - 1));
+            IRubyObject ret = runtime.newString(new ByteList(value, 1, value.length - 1, false));
             recv.getInstanceVariables().setInstanceVariable("unused_bits", RubyNumeric.int2fix(runtime, unusedBits));
             return ret;
         }
