@@ -22,6 +22,7 @@ end
 RSpec::Core::RakeTask.new(:spec) do |spec|
   spec.ruby_opts = ['--1.9']
   spec.pattern = File.join(KRYPT_HOME, 'spec/**/*_spec.rb')
+  spec.fail_on_error = false
 end
 
 task :pre_coverage do
