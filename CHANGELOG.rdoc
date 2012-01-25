@@ -1,3 +1,6 @@
+=== 0.1.0 / 2012-01-25 [emboss]
+* Fix errors revealed by specs
+
 === 0.1.0 / 2012-01-24 [emboss]
 * Capitalize Asn1 and other acronyms
 

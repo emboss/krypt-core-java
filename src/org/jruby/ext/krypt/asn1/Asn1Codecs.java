@@ -237,7 +237,7 @@ public class Asn1Codecs {
         
         private long determineFirst(long combined) {
             long f = 1;
-            while (40 * f < combined)
+            while (40 * f <= combined)
                 f++;
             return f - 1;
         }
@@ -294,18 +294,40 @@ public class Asn1Codecs {
     private static final DateTimeFormatter GT_FORMATTER = DateTimeFormat.forPattern("yyyyMMddHHmmss'Z'").withZone(DateTimeZone.UTC);
     
     private static byte[] encodeTime(Ruby runtime, IRubyObject value, DateTimeFormatter formatter) {
-        if (!(value instanceof RubyTime))
-            throw Errors.newASN1Error(runtime, "Value is not a time");
-        return ((RubyTime)value).getDateTime()
+        if (value instanceof RubyTime)
+            return encodeRubyTime(runtime, value, formatter);
+        else return encodeFixnumTime(runtime, value, formatter);
+    }
+    
+    private static byte[] encodeRubyTime(Ruby runtime, IRubyObject value, DateTimeFormatter formatter) {
+        try {
+            return ((RubyTime)value).getDateTime()
                                 .toString(formatter)
                                 .getBytes();
+        } catch (Exception ex) {
+            throw Errors.newASN1Error(runtime, "Error while encoding time value: " + ex.getMessage());
+        }
+    }
+    
+    private static byte[] encodeFixnumTime(Ruby runtime, IRubyObject value, DateTimeFormatter formatter) {
+        try {
+            /* Ruby time is *seconds* since the epoch */
+            DateTime dt = new DateTime(RubyNumeric.num2long(value) * 1000, DateTimeZone.UTC);
+            return dt.toString(formatter).getBytes();
+        } catch (Exception ex) {
+            throw Errors.newASN1Error(runtime, "Error while encoding time value: " + ex.getMessage());
+        }
     }
     
     private static IRubyObject decodeTime(Ruby runtime, byte[] value, DateTimeFormatter formatter) {
         if (value == null)
             throw Errors.newASN1Error(runtime, "Invalid time encoding");
-        DateTime dateTime = formatter.parseDateTime(new String(value, Charset.forName("US-ASCII")));
-        return RubyTime.newTime(runtime, dateTime);
+        try {
+            DateTime dateTime = formatter.parseDateTime(new String(value, Charset.forName("US-ASCII")));
+            return RubyTime.newTime(runtime, dateTime);
+        } catch (Exception ex) {
+            throw Errors.newASN1Error(runtime, "Error while decoding time value: " + ex.getMessage());
+        }
     }
     
     private static final Asn1Codec UTC_TIME = new Asn1Codec() {

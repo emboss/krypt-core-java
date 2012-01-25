@@ -36,7 +36,6 @@ import impl.krypt.asn1.ParsedHeader;
 import impl.krypt.asn1.ParserFactory;
 import impl.krypt.asn1.Tag;
 import impl.krypt.asn1.TagClass;
-import impl.krypt.asn1.Tags;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
@@ -100,7 +99,7 @@ public class Asn1 {
         public IRubyObject decode(Ruby runtime, byte[] value);
     }
     
-    private static Asn1Codec codecFor(int tag, TagClass tagClass)
+    static Asn1Codec codecFor(int tag, TagClass tagClass)
     {
         Asn1Codec codec;
         if (tag < 30 && tagClass.equals(TagClass.UNIVERSAL))
@@ -122,11 +121,11 @@ public class Asn1 {
     }
     
     static void defaultInitialize(Asn1Data data,
-                                          Ruby runtime, 
-                                          IRubyObject value, 
-                                          IRubyObject tag, 
-                                          IRubyObject tag_class, 
-                                          boolean isConstructed) {
+                                  Ruby runtime, 
+                                  IRubyObject value, 
+                                  IRubyObject tag, 
+                                  IRubyObject tag_class, 
+                                  boolean isConstructed) {
         if(!(tag_class instanceof RubySymbol)) {
             throw Errors.newASN1Error(runtime, "tag_class must be a symbol");
         }
@@ -209,6 +208,10 @@ public class Asn1 {
         
         protected Asn1Codec getCodec() {
             return codec;
+        }
+        
+        protected void setCodec(Asn1Codec codec) {
+            this.codec = codec;
         }
         
         protected Asn1Data(Ruby runtime, 
@@ -365,7 +368,7 @@ public class Asn1 {
             Tag t = object.getHeader().getTag();
             int itag = t.getTag();
             if (t.getTagClass().equals(TagClass.UNIVERSAL) &&
-                (itag == Tags.NULL || itag == Tags.END_OF_CONTENTS)) {
+                (itag == Asn1Tags.NULL || itag == Asn1Tags.END_OF_CONTENTS)) {
                 /* Treat NULL and END_OF_CONTENTS exceptionally. No additional
                  * encoding step needed since they have no value to encode */
                  object.encodeTo(out);
@@ -439,7 +442,7 @@ public class Asn1 {
                 encoded = codec.encode(runtime, value);
             else
                 encoded = Asn1Codecs.DEFAULT.encode(runtime, value);
-            object.getHeader().getLength().setLength(encoded.length);
+            object.getHeader().getLength().setLength(encoded == null ? 0 : encoded.length);
             object.setValue(encoded);
             object.encodeTo(out);
         }
@@ -693,7 +696,6 @@ public class Asn1 {
         }
         
         List<IRubyObject> ary = new ArrayList<IRubyObject>();
-        mASN1.setConstant("UNIVERSAL_TAG_NAME",runtime.newArray(ary));
         for(int i=0; i<ASN1_INFOS.length; i++) {
             if((((String)ASN1_INFOS[i][0])).charAt(0) != '[') {
                 ary.add(runtime.newString(((String)(ASN1_INFOS[i][0]))));
@@ -703,6 +705,7 @@ public class Asn1 {
                 ary.add(runtime.getNil());
             }
         }
+        mASN1.setConstant("UNIVERSAL_TAG_NAME",runtime.newArray(ary));
         
         Parser.createParser(runtime, mASN1);
         Header.createHeader(runtime, mASN1);

@@ -32,7 +32,6 @@ package impl.krypt.asn1.parser;
 import impl.krypt.asn1.ParseException;
 import impl.krypt.asn1.ParsedHeader;
 import impl.krypt.asn1.Parser;
-import impl.krypt.asn1.Tags;
 import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -111,7 +110,7 @@ class ChunkInputStream extends FilterInputStream {
         //if state is PROCESS_VALUE, this means that the tag bytes
         //have been consumed. As an EOC contains no value, we are
         //done
-        if (currentHeader.getTag().getTag() == Tags.END_OF_CONTENTS &&
+        if (currentHeader.getTag().getTag() == 0x00 &&
             state == State.PROCESS_VALUE) {
             state = State.DONE;
         }
