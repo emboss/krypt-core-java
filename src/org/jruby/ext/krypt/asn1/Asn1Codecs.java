@@ -61,12 +61,12 @@ public class Asn1Codecs {
     static final Asn1Codec DEFAULT = new Asn1Codec() {
 
         @Override
-        public byte[] encode(Ruby runtime, IRubyObject value) {
+        public byte[] encode(IRubyObject recv, Ruby runtime, IRubyObject value) {
             return value.convertToString().getBytes();
         }
 
         @Override
-        public IRubyObject decode(Ruby runtime, byte[] value) {
+        public IRubyObject decode(IRubyObject recv, Ruby runtime, byte[] value) {
             if (value == null)
                 return runtime.getNil();
             else
@@ -77,12 +77,12 @@ public class Asn1Codecs {
     private static final Asn1Codec END_OF_CONTENTS = new Asn1Codec() {
 
         @Override
-        public byte[] encode(Ruby runtime, IRubyObject value) {
+        public byte[] encode(IRubyObject recv, Ruby runtime, IRubyObject value) {
             return null;
         }
 
         @Override
-        public IRubyObject decode(Ruby runtime, byte[] value) {
+        public IRubyObject decode(IRubyObject recv, Ruby runtime, byte[] value) {
             if (!(value == null || value.length == 0))
                 throw Errors.newASN1Error(runtime, "Invalid end of contents encoding");
             return runtime.getNil();
@@ -92,7 +92,7 @@ public class Asn1Codecs {
     private static final Asn1Codec BOOLEAN = new Asn1Codec() {
 
         @Override
-        public byte[] encode(Ruby runtime, IRubyObject value) {
+        public byte[] encode(IRubyObject recv, Ruby runtime, IRubyObject value) {
             byte[] b = new byte[1];
             if (!value.isTrue())
                 b[0] = (byte)0x00;
@@ -102,7 +102,7 @@ public class Asn1Codecs {
         }
 
         @Override
-        public IRubyObject decode(Ruby runtime, byte[] value) {
+        public IRubyObject decode(IRubyObject recv, Ruby runtime, byte[] value) {
             if (value == null || value.length != 1)
                 throw Errors.newASN1Error(runtime, "Boolean value with length != 1 found");
             if (value[0] == ((byte)0x00))
@@ -115,7 +115,7 @@ public class Asn1Codecs {
     private static final Asn1Codec INTEGER = new Asn1Codec() {
 
         @Override
-        public byte[] encode(Ruby runtime, IRubyObject value) {
+        public byte[] encode(IRubyObject recv, Ruby runtime, IRubyObject value) {
             if (value instanceof RubyFixnum) {
                 return BigInteger.valueOf(RubyNumeric.num2long(value)).toByteArray();
             } else if (value instanceof RubyBignum) {
@@ -133,7 +133,7 @@ public class Asn1Codecs {
         }
 
         @Override
-        public IRubyObject decode(Ruby runtime, byte[] value) {
+        public IRubyObject decode(IRubyObject recv, Ruby runtime, byte[] value) {
             if (value == null)
                 throw Errors.newASN1Error(runtime, "Invalid integer encoding");
             return RubyBignum.newBignum(runtime, new BigInteger(value));
@@ -143,8 +143,8 @@ public class Asn1Codecs {
     private static final Asn1Codec BIT_STRING = new Asn1Codec() {
 
         @Override
-        public byte[] encode(Ruby runtime, IRubyObject value) {
-            IRubyObject unusedBitsIv = value.getInstanceVariables().getInstanceVariable("unused_bits");
+        public byte[] encode(IRubyObject recv, Ruby runtime, IRubyObject value) {
+            IRubyObject unusedBitsIv = recv.getInstanceVariables().getInstanceVariable("unused_bits");
             int unusedBits = RubyNumeric.fix2int(unusedBitsIv);
             byte[] bytes = value.convertToString().getBytes();
             byte[] ret = new byte[bytes.length + 1];
@@ -154,12 +154,12 @@ public class Asn1Codecs {
         }
 
         @Override
-        public IRubyObject decode(Ruby runtime, byte[] value) {
+        public IRubyObject decode(IRubyObject recv, Ruby runtime, byte[] value) {
             if (value == null)
                 throw Errors.newASN1Error(runtime, "Invalid bit string encoding");
             int unusedBits = value[0] & 0xff;
             IRubyObject ret = runtime.newString(new ByteList(value, 1, value.length - 1));
-            ret.getInstanceVariables().setInstanceVariable("unused_bits", RubyNumeric.int2fix(runtime, unusedBits));
+            recv.getInstanceVariables().setInstanceVariable("unused_bits", RubyNumeric.int2fix(runtime, unusedBits));
             return ret;
         }
     };
@@ -169,12 +169,12 @@ public class Asn1Codecs {
     private static final Asn1Codec NULL = new Asn1Codec() {
 
         @Override
-        public byte[] encode(Ruby runtime, IRubyObject value) {
+        public byte[] encode(IRubyObject recv, Ruby runtime, IRubyObject value) {
             return null;
         }
 
         @Override
-        public IRubyObject decode(Ruby runtime, byte[] value) {
+        public IRubyObject decode(IRubyObject recv, Ruby runtime, byte[] value) {
             if (!(value == null || value.length == 0))
                 throw Errors.newASN1Error(runtime, "Invalid null encoding");
             return runtime.getNil();
@@ -184,7 +184,7 @@ public class Asn1Codecs {
     private static final Asn1Codec OBJECT_ID = new Asn1Codec() {
 
         @Override
-        public byte[] encode(Ruby runtime, IRubyObject value) {
+        public byte[] encode(IRubyObject recv, Ruby runtime, IRubyObject value) {
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             long first, second, cur;
             ObjectIdEncodeContext ctx = new ObjectIdEncodeContext(value.convertToString().getBytes(), runtime);
@@ -210,7 +210,7 @@ public class Asn1Codecs {
         }
         
         @Override
-        public IRubyObject decode(Ruby runtime, byte[] value) {
+        public IRubyObject decode(IRubyObject recv, Ruby runtime, byte[] value) {
             if (value == null)
                 throw Errors.newASN1Error(runtime, "Invalid object id encoding");
             long first, second, cur;
@@ -276,15 +276,15 @@ public class Asn1Codecs {
     private static final Asn1Codec UTF8_STRING = new Asn1Codec() {
 
         @Override
-        public byte[] encode(Ruby runtime, IRubyObject value) {
+        public byte[] encode(IRubyObject recv, Ruby runtime, IRubyObject value) {
             RubyString s = value.convertToString();
             s.associateEncoding(UTF8Encoding.INSTANCE);
             return s.getBytes();
         }
 
         @Override
-        public IRubyObject decode(Ruby runtime, byte[] value) {
-            IRubyObject obj = DEFAULT.decode(runtime, value);
+        public IRubyObject decode(IRubyObject recv, Ruby runtime, byte[] value) {
+            IRubyObject obj = DEFAULT.decode(recv, runtime, value);
             obj.asString().associateEncoding(UTF8Encoding.INSTANCE);
             return obj;
         }
@@ -333,12 +333,12 @@ public class Asn1Codecs {
     private static final Asn1Codec UTC_TIME = new Asn1Codec() {
 
         @Override
-        public byte[] encode(Ruby runtime, IRubyObject value) {
+        public byte[] encode(IRubyObject recv, Ruby runtime, IRubyObject value) {
             return encodeTime(runtime, value, UTC_FORMATTER);
         }
 
         @Override
-        public IRubyObject decode(Ruby runtime, byte[] value) {
+        public IRubyObject decode(IRubyObject recv, Ruby runtime, byte[] value) {
             return decodeTime(runtime, value, UTC_FORMATTER);
         }
     };
@@ -346,12 +346,12 @@ public class Asn1Codecs {
     private static final Asn1Codec GENERALIZED_TIME = new Asn1Codec() {
 
         @Override
-        public byte[] encode(Ruby runtime, IRubyObject value) {
+        public byte[] encode(IRubyObject recv, Ruby runtime, IRubyObject value) {
             return encodeTime(runtime, value, GT_FORMATTER);
         }
 
         @Override
-        public IRubyObject decode(Ruby runtime, byte[] value) {
+        public IRubyObject decode(IRubyObject recv, Ruby runtime, byte[] value) {
             return decodeTime(runtime, value, GT_FORMATTER);
         }
     };

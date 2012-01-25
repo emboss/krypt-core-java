@@ -95,8 +95,8 @@ public class Asn1 {
     static final impl.krypt.asn1.Parser PARSER = new ParserFactory().newHeaderParser();
     
     public static interface Asn1Codec {
-        public byte[] encode(Ruby runtime, IRubyObject value);
-        public IRubyObject decode(Ruby runtime, byte[] value);
+        public byte[] encode(IRubyObject recv, Ruby runtime, IRubyObject value);
+        public IRubyObject decode(IRubyObject recv, Ruby runtime, byte[] value);
     }
     
     static Asn1Codec codecFor(int tag, TagClass tagClass)
@@ -381,7 +381,7 @@ public class Asn1 {
             if (object.getHeader().getTag().isConstructed()) {
                 return Asn1Constructive.decodeValue(ctx, object.getValue());
             } else {
-                return Asn1Primitive.decodeValue(ctx.getRuntime(), codec, object.getValue());
+                return Asn1Primitive.decodeValue(ctx.getRuntime(), this, codec, object.getValue());
             }
         }
         
@@ -390,7 +390,7 @@ public class Asn1 {
                 if (object.getHeader().getTag().isConstructed()) {
                     Asn1Constructive.encodeTo(ctx, object, value, out);
                 } else {
-                    Asn1Primitive.encodeTo(ctx.getRuntime(), codec, object, value, out);
+                    Asn1Primitive.encodeTo(ctx.getRuntime(), this, codec, object, value, out);
                 }
             } catch (IOException ex) {
                 throw Errors.newSerializeError(ctx.getRuntime(), ex.getMessage());
@@ -417,31 +417,36 @@ public class Asn1 {
         
         @Override
         protected IRubyObject decodeValue(ThreadContext ctx) {
-            return decodeValue(ctx.getRuntime(), getCodec(), getObject().getValue());
+            return decodeValue(ctx.getRuntime(), this, getCodec(), getObject().getValue());
         }
         
         @Override
         protected void encodeTo(ThreadContext ctx, IRubyObject value, OutputStream out) {
             try {
-                encodeTo(ctx.getRuntime(), getCodec(), getObject(), value, out);
+                encodeTo(ctx.getRuntime(), this, getCodec(), getObject(), value, out);
             } catch (Exception ex) {
                 throw Errors.newSerializeError(ctx.getRuntime(), ex.getMessage());
             }
         }
         
-        static IRubyObject decodeValue(Ruby runtime, Asn1Codec codec, byte[] value) {
+        static IRubyObject decodeValue(Ruby runtime, IRubyObject recv, Asn1Codec codec, byte[] value) {
             if (codec != null)
-                return codec.decode(runtime, value);
+                return codec.decode(recv, runtime, value);
             else
-                return Asn1Codecs.DEFAULT.decode(runtime, value);
+                return Asn1Codecs.DEFAULT.decode(recv, runtime, value);
         }
         
-        static void encodeTo(Ruby runtime, Asn1Codec codec, Asn1Object object, IRubyObject value, OutputStream out) throws IOException {
+        static void encodeTo(Ruby runtime,
+                             IRubyObject recv,
+                             Asn1Codec codec, 
+                             Asn1Object object, 
+                             IRubyObject value, 
+                             OutputStream out) throws IOException {
             byte[] encoded;
             if (codec != null)
-                encoded = codec.encode(runtime, value);
+                encoded = codec.encode(recv, runtime, value);
             else
-                encoded = Asn1Codecs.DEFAULT.encode(runtime, value);
+                encoded = Asn1Codecs.DEFAULT.encode(recv, runtime, value);
             object.getHeader().getLength().setLength(encoded == null ? 0 : encoded.length);
             object.setValue(encoded);
             object.encodeTo(out);

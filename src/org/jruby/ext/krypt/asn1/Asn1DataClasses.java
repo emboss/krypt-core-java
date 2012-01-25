@@ -33,7 +33,9 @@ import impl.krypt.asn1.Asn1Object;
 import impl.krypt.asn1.TagClass;
 import org.jruby.Ruby;
 import org.jruby.RubyClass;
+import org.jruby.RubyFixnum;
 import org.jruby.anno.JRubyMethod;
+import org.jruby.compiler.ir.operands.Fixnum;
 import org.jruby.ext.krypt.asn1.Asn1.Asn1Constructive;
 import org.jruby.ext.krypt.asn1.Asn1.Asn1Data;
 import org.jruby.ext.krypt.asn1.Asn1.Asn1Primitive;
@@ -172,7 +174,9 @@ public class Asn1DataClasses {
         
         @JRubyMethod(required=1, optional=2)
         public IRubyObject initialize(ThreadContext ctx, IRubyObject[] args) {
-            return init(this, ctx, args, Asn1Tags.BIT_STRING, false);
+            IRubyObject val = init(this, ctx, args, Asn1Tags.BIT_STRING, false);
+            val.getInstanceVariables().setInstanceVariable("unused_bits", RubyFixnum.zero(ctx.getRuntime()));
+            return val;
         }
     }
     
