@@ -503,6 +503,8 @@ public class Asn1 {
         
         static IRubyObject decodeValue(ThreadContext ctx, byte[] value) {
             Ruby rt = ctx.getRuntime();
+            if (value == null)
+                return rt.getNil();
             InputStream in = new ByteArrayInputStream(value);
             List<IRubyObject> list = new ArrayList<IRubyObject>();
             ParsedHeader h;
@@ -515,20 +517,29 @@ public class Asn1 {
         }
         
         static void encodeTo(ThreadContext ctx, Asn1Object object, IRubyObject ary, OutputStream out) throws IOException {
-            Length l = object.getHeader().getLength();
-            if (l.getEncoding() == null) {
-                /* TODO compute and update length in header */
-                throw new UnsupportedOperationException("Not implemented yet");
+            impl.krypt.asn1.Header h = object.getHeader();
+            Length l = h.getLength();
+            if (!l.hasBeenComputed()) {
+                /* compute the encoding of the sub elements and update length in header */
+                ByteArrayOutputStream baos = new ByteArrayOutputStream();
+                encodeSubElements(ctx, ary, baos);
+                byte[] subEncoding = baos.toByteArray();
+                l.setLength(subEncoding.length);
+                h.encodeTo(out);
+                out.write(subEncoding);
+            } else {
+                object.getHeader().encodeTo(out);
+                encodeSubElements(ctx, ary, out);
             }
-            
-            object.getHeader().encodeTo(out);
-            
+        }
+        
+        private static void encodeSubElements(ThreadContext ctx, IRubyObject ary, OutputStream out) {
             if (!(ary instanceof RubyArray))
-                throw new IllegalArgumentException("Value is not an array");
+                throw Errors.newError(ctx.getRuntime(), "ArgumentError", "Value is not an array");
             
             for (IRubyObject value : ((RubyArray)ary).toJavaArray()) {
                 if (!(value instanceof Asn1Data))
-                    throw new IllegalArgumentException("Value in array is not an Asn1Data");
+                    throw Errors.newError(ctx.getRuntime(), "ArgumentError", "Value is not an ASN1Data");
                 ((Asn1Data)value).encodeToInternal(ctx, out);
             }
         }

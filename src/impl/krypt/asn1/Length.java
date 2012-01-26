@@ -53,6 +53,10 @@ public class Length {
         this.encoding = null;
     }
     
+    public boolean hasBeenComputed() {
+        return encoding != null;
+    }
+    
     private byte[] computeEncoding() {
         if (isInfiniteLength) {
             return new byte[]{Header.INFINITE_LENGTH_MASK};

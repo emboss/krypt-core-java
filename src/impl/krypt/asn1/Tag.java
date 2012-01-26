@@ -90,6 +90,10 @@ public class Tag {
         this.tc = tagClass;
         this.encoding = null;
     }
+    
+    public boolean hasBeenComputed() {
+        return encoding != null;
+    }
 
     private byte[] computeEncoding() {
         if (tag < 31) {
