@@ -519,7 +519,10 @@ public class Asn1 {
         static void encodeTo(ThreadContext ctx, Asn1Object object, IRubyObject ary, OutputStream out) throws IOException {
             impl.krypt.asn1.Header h = object.getHeader();
             Length l = h.getLength();
-            if (!l.hasBeenComputed()) {
+            /* If the length encoding has been cached or if we have an infinite
+             * length encoding, we don't need to precompute the length and may
+             * start encoding right away */
+            if (!l.hasBeenComputed() && !l.isInfiniteLength()) {
                 /* compute the encoding of the sub elements and update length in header */
                 ByteArrayOutputStream baos = new ByteArrayOutputStream();
                 encodeSubElements(ctx, ary, baos);
