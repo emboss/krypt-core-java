@@ -132,7 +132,7 @@ public class PullHeaderParser implements Parser {
 	byte b = nextByte(in);
 	
         if (b == Header.INFINITE_LENGTH_MASK)
-            return new Length(-1, true, new byte[] { b });
+            return new Length(0, true, new byte[] { b });
         else if (matchMask(b, Header.INFINITE_LENGTH_MASK))
             return parseComplexDefiniteLength(b, in);
         else
