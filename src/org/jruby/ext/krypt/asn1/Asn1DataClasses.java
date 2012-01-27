@@ -52,18 +52,34 @@ public class Asn1DataClasses {
     private Asn1DataClasses() {}
     
     private static IRubyObject init(Asn1Data data, ThreadContext ctx, IRubyObject[] args, int defaultTag, boolean constructed) {
-        Ruby runtime = ctx.getRuntime();
-        IRubyObject value = args[0];
-        IRubyObject tag, tagClass;
-        if (args.length > 1) {
-            if (!args[2].isNil() && args[1].isNil())
+        Ruby runtime = ctx.runtime;
+        IRubyObject value, tag, tagClass;
+        switch (args.length) {
+        case 3:
+            value = args[0];
+            if (!args[2].isNil() && args[1].isNil()) {
                 throw runtime.newArgumentError(("Tag must be specified if tag class is"));
+            }
             tag = args[1];
             tagClass = args[2];
-
-        } else {
+            break;
+        case 2:
+            value = args[0];
+            tag = args[1];
+            tagClass = runtime.newSymbol(TagClass.CONTEXT_SPECIFIC.name());
+            break;
+        case 1:
+            value = args[0];
             tag = runtime.newFixnum(defaultTag);
             tagClass = runtime.newSymbol(TagClass.UNIVERSAL.name());
+            break;
+        case 0:
+            value = ctx.nil;
+            tag = runtime.newFixnum(defaultTag);
+            tagClass = runtime.newSymbol(TagClass.UNIVERSAL.name());
+            break;
+        default:
+            throw new IllegalStateException("caller must restrict number of args <= 3");
         }
         Asn1.defaultInitialize(data, 
                                runtime, 
