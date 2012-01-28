@@ -64,27 +64,28 @@ public class Asn1DataClasses {
     private static TagAndClass validateArgs(Ruby runtime, IRubyObject[] args, int defaultTag) {
         IRubyObject tag, tagClass;
         
-        if (args.length > 1) {
+        switch (args.length) {
+        case 3:
+            if (!args[2].isNil() && args[1].isNil()) {
+                throw runtime.newArgumentError(("Tag must be specified if tag class is"));
+            }
             tag = args[1];
-            if (args.length == 3) {
-                if (tag.isNil())
-                    throw Errors.newASN1Error(runtime, "Tag must be specified if tag class is");
-                tagClass = args[2];
-                if (tagClass.isNil())
-                    throw Errors.newASN1Error(runtime, "Tag class must be a symbol");
-            }
-            else {
-                if (tag.isNil()) {
-                    tag = runtime.newFixnum(defaultTag);
-                    tagClass = runtime.newSymbol(TagClass.UNIVERSAL.name());
-                }
-                else {
-                    tagClass = runtime.newSymbol(TagClass.CONTEXT_SPECIFIC.name());
-                }
-            }
-        } else {
+            tagClass = args[2];
+            break;
+        case 2:
+            tag = args[1];
+            tagClass = runtime.newSymbol(TagClass.CONTEXT_SPECIFIC.name());
+            break;
+        case 1:
             tag = runtime.newFixnum(defaultTag);
             tagClass = runtime.newSymbol(TagClass.UNIVERSAL.name());
+            break;
+        case 0:
+            tag = runtime.newFixnum(defaultTag);
+            tagClass = runtime.newSymbol(TagClass.UNIVERSAL.name());
+            break;
+        default:
+            throw new IllegalStateException("caller must restrict number of args <= 3");
         }
         
         return new TagAndClass(tag, tagClass);
