@@ -254,7 +254,9 @@ public class Asn1Codecs {
                 throw Errors.newASN1Error(runtime, "Error while encoding object identifier");
             if ((second = oidctx.nextSubId()) == -1)
                 throw Errors.newASN1Error(runtime, "Error while encoding object identifier");
-    
+            checkFirstSubId(runtime, first);
+            checkSecondSubId(runtime, second);
+
             cur = 40 * first + second;
             
             try {
@@ -282,8 +284,12 @@ public class Asn1Codecs {
             
             if ((cur = oidctx.parseNext()) == -1)
                 throw Errors.newASN1Error(runtime, "Error while parsing object identifier");
+            if (cur > 40 * 2 + 39)
+                throw Errors.newASN1Error(runtime, "Illegal first octet, value too large");
             first = determineFirst(cur);
             second = cur - 40 * first;
+            checkFirstSubId(runtime, first);
+            checkSecondSubId(runtime, second);
             builder.append(String.valueOf(first));
             appendNumber(builder, second);
             
@@ -304,7 +310,17 @@ public class Asn1Codecs {
                 f++;
             return f - 1;
         }
+        
+        private void checkFirstSubId(Ruby runtime, long first) {
+            if (first > 2)
+                throw Errors.newASN1Error(runtime, "First sub id must be 0..2");
+        }
 
+        private void checkSecondSubId(Ruby runtime, long second) {
+            if (second > 39)
+                throw Errors.newASN1Error(runtime, "Second sub id must be 0..39");
+        }
+        
         @Override
         public void validate(ValidateContext ctx) {
             if (!(ctx.getValue() instanceof RubyString))
