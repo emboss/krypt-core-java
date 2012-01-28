@@ -35,7 +35,7 @@ import org.jruby.Ruby;
 import org.jruby.RubyClass;
 import org.jruby.RubyFixnum;
 import org.jruby.anno.JRubyMethod;
-import org.jruby.compiler.ir.operands.Fixnum;
+import org.jruby.ext.krypt.Errors;
 import org.jruby.ext.krypt.asn1.Asn1.Asn1Constructive;
 import org.jruby.ext.krypt.asn1.Asn1.Asn1Data;
 import org.jruby.ext.krypt.asn1.Asn1.Asn1Primitive;
@@ -51,20 +51,54 @@ public class Asn1DataClasses {
     
     private Asn1DataClasses() {}
     
-    private static IRubyObject init(Asn1Data data, ThreadContext ctx, IRubyObject[] args, int defaultTag, boolean constructed) {
-        Ruby runtime = ctx.getRuntime();
-        IRubyObject value = args[0];
-        IRubyObject tag, tagClass;
-        if (args.length > 1) {
-            if (!args[2].isNil() && args[1].isNil())
-                throw runtime.newArgumentError(("Tag must be specified if tag class is"));
-            tag = args[1];
-            tagClass = args[2];
+    private static class TagAndClass {
+        private final IRubyObject tag;
+        private final IRubyObject tagClass;
 
+        public TagAndClass(IRubyObject tag, IRubyObject tagClass) {
+            this.tag = tag;
+            this.tagClass = tagClass;
+        }
+    }
+    
+    private static TagAndClass validateArgs(Ruby runtime, IRubyObject[] args, int defaultTag) {
+        IRubyObject tag, tagClass;
+        
+        if (args.length > 1) {
+            tag = args[1];
+            if (args.length == 3) {
+                if (tag.isNil())
+                    throw Errors.newASN1Error(runtime, "Tag must be specified if tag class is");
+                tagClass = args[2];
+                if (tagClass.isNil())
+                    throw Errors.newASN1Error(runtime, "Tag class must be a symbol");
+            }
+            else {
+                if (tag.isNil()) {
+                    tag = runtime.newFixnum(defaultTag);
+                    tagClass = runtime.newSymbol(TagClass.UNIVERSAL.name());
+                }
+                else {
+                    tagClass = runtime.newSymbol(TagClass.CONTEXT_SPECIFIC.name());
+                }
+            }
         } else {
             tag = runtime.newFixnum(defaultTag);
             tagClass = runtime.newSymbol(TagClass.UNIVERSAL.name());
         }
+        
+        return new TagAndClass(tag, tagClass);
+    }
+    
+    private static IRubyObject init(Asn1Data data, ThreadContext ctx, IRubyObject[] args, int defaultTag, boolean constructed) {
+        Ruby runtime = ctx.getRuntime();
+        IRubyObject value = args[0];
+        IRubyObject tag, tagClass;
+        
+        TagAndClass tac = validateArgs(runtime, args, defaultTag);
+        tag = tac.tag;
+        tagClass = tac.tagClass;
+        
         Asn1.defaultInitialize(data, 
                                runtime, 
                                value, 
@@ -83,7 +117,7 @@ public class Asn1DataClasses {
         static ObjectAllocator ALLOCATOR = new ObjectAllocator() {
             @Override
             public IRubyObject allocate(Ruby runtime, RubyClass type) {
-                return new Asn1Primitive(runtime, type);
+                return new Asn1EndOfContents(runtime, type);
             }
         };
         
@@ -95,10 +129,16 @@ public class Asn1DataClasses {
             super(runtime, type, object);
         }
         
-        @Override
-        @JRubyMethod
-        public IRubyObject initialize(ThreadContext ctx) {
+        @JRubyMethod(required=0, optional=1)
+        public IRubyObject initialize(ThreadContext ctx, IRubyObject[] args) {
             Ruby runtime = ctx.getRuntime();
+            
+            if (args.length == 1) {
+                IRubyObject value = args[0];
+                if (!value.isNil())
+                    throw runtime.newArgumentError("Value must be nil for END_OF_CONTENTS");
+            }
+            
             Asn1.defaultInitialize(this, 
                               runtime, 
                               runtime.getNil(), 

@@ -46,12 +46,15 @@ import java.util.ArrayList;
 import java.util.List;
 import org.jruby.Ruby;
 import org.jruby.RubyArray;
+import org.jruby.RubyBoolean;
 import org.jruby.RubyClass;
+import org.jruby.RubyEnumerable;
 import org.jruby.RubyModule;
 import org.jruby.RubyNumeric;
 import org.jruby.RubyObject;
 import org.jruby.RubySymbol;
 import org.jruby.anno.JRubyMethod;
+import org.jruby.exceptions.RaiseException;
 import org.jruby.ext.krypt.Errors;
 import org.jruby.ext.krypt.Streams;
 import org.jruby.ext.krypt.asn1.Asn1DataClasses.Asn1BitString;
@@ -78,6 +81,7 @@ import org.jruby.ext.krypt.asn1.Asn1DataClasses.Asn1UtcTime;
 import org.jruby.ext.krypt.asn1.Asn1DataClasses.Asn1Utf8String;
 import org.jruby.ext.krypt.asn1.Asn1DataClasses.Asn1VideotexString;
 import org.jruby.runtime.Block;
+import org.jruby.runtime.BlockCallback;
 import org.jruby.runtime.ObjectAllocator;
 import org.jruby.runtime.ThreadContext;
 import org.jruby.runtime.builtin.IRubyObject;
@@ -97,6 +101,7 @@ public class Asn1 {
     public static interface Asn1Codec {
         public byte[] encode(EncodeContext ctx);
         public IRubyObject decode(DecodeContext ctx);
+        public void validate(ValidateContext ctx);
     }
     
     public static final class EncodeContext {
@@ -131,13 +136,34 @@ public class Asn1 {
         public byte[] getValue() { return value; }
     }
     
+    public static final class ValidateContext {
+        private final IRubyObject recv;
+        private final Ruby runtime;
+        private final IRubyObject value;
+
+        public ValidateContext(IRubyObject recv, Ruby runtime, IRubyObject value) {
+            this.recv = recv;
+            this.runtime = runtime;
+            this.value = value;
+        }
+
+        public IRubyObject getRecv() { return recv; }
+        public Ruby getRuntime() { return runtime; }
+        public IRubyObject getValue() { return value; }
+    }
+    
     static Asn1Codec codecFor(int tag, TagClass tagClass)
     {
         Asn1Codec codec;
-        if (tag < 30 && tagClass.equals(TagClass.UNIVERSAL))
+        
+        if (tag < 30 && tagClass.equals(TagClass.UNIVERSAL)) {
             codec = Asn1Codecs.CODECS[tag];
-        else
-            codec = null;
+            if (codec == null)
+                codec = Asn1Codecs.DEFAULT;
+        }
+        else {
+            codec = Asn1Codecs.DEFAULT;
+        }
         return codec;
     }
     
@@ -149,7 +175,8 @@ public class Asn1 {
     {
         EncodableHeader h = new EncodableHeader(tag, tagClass, isConstructed, isInfinite);
         data.object = new Asn1Object(h, null);
-        data.codec = codecFor(tag, tagClass);
+        if (!isConstructed)
+            data.codec = codecFor(tag, tagClass);
     }
     
     static void defaultInitialize(Asn1Data data,
@@ -162,7 +189,14 @@ public class Asn1 {
             throw Errors.newASN1Error(runtime, "tag_class must be a symbol");
         }
         int itag = RubyNumeric.fix2int(tag);
-        TagClass tc = TagClass.valueOf(tag_class.toString());
+        
+        TagClass tc;
+        
+        try {
+            tc = TagClass.valueOf(tag_class.toString());
+        } catch (IllegalArgumentException ex) {
+            throw Errors.newASN1Error(runtime, "Unknown tag class: " + tag_class.toString());
+        }
         
         initInternal(data, 
                     itag, 
@@ -257,7 +291,8 @@ public class Asn1 {
             int itag = t.getTag();
             TagClass tc = t.getTagClass();
             Length length = h.getLength(); 
-            this.codec = codecFor(itag, tc);
+            if (!t.isConstructed())
+                this.codec = codecFor(itag, tc);
             
             InstanceVariables ivs = getInstanceVariables();
             ivs.setInstanceVariable("tag", runtime.newFixnum(itag));
@@ -324,7 +359,8 @@ public class Asn1 {
             int itag = RubyNumeric.fix2int(value);
             Tag t = object.getHeader().getTag();
             t.setTag(itag);
-            codec = codecFor(itag, t.getTagClass());
+            if (!t.isConstructed())
+                codec = codecFor(itag, t.getTagClass());
             ivs.setInstanceVariable("tag", value);
             return value;
         }
@@ -340,21 +376,20 @@ public class Asn1 {
             TagClass tc = TagClass.valueOf(value.toString());
             Tag t = object.getHeader().getTag();
             t.setTagClass(tc);
-            codec = codecFor(t.getTag(), tc);
             ivs.setInstanceVariable("tag_class", value);
             return value;
         }
         
         @JRubyMethod(name={"infinite_length="})
-        public synchronized IRubyObject set_infinite_length(IRubyObject value) {
+        public synchronized IRubyObject set_infinite_length(ThreadContext ctx, IRubyObject value) {
             InstanceVariables ivs = getInstanceVariables();
             IRubyObject inflen = ivs.getInstanceVariable("infinite_length");
             if (inflen == value)
                 return value;
-            boolean boolVal = value.isTrue();
+            boolean boolVal = value.isTrue() || !value.isNil();
             Length l = object.getHeader().getLength();
             l.setInfiniteLength(boolVal);
-            ivs.setInstanceVariable("infinite_length", value);
+            ivs.setInstanceVariable("infinite_length", RubyBoolean.newBoolean(ctx.getRuntime(), boolVal));
             return value;
         }
         
@@ -388,24 +423,11 @@ public class Asn1 {
         final void encodeToInternal(ThreadContext ctx, OutputStream out) {
             try {
                 if (object.getValue() == null)
-                    computeAndEncode(ctx, out);
+                    encodeTo(ctx, value, out);
                 else
                     object.encodeTo(out);
             } catch (IOException ex) {
                 throw Errors.newSerializeError(ctx.getRuntime(), ex.getMessage());
-            }
-        }
-        
-        private void computeAndEncode(ThreadContext ctx, OutputStream out) throws IOException {
-            Tag t = object.getHeader().getTag();
-            int itag = t.getTag();
-            if (t.getTagClass().equals(TagClass.UNIVERSAL) &&
-                (itag == Asn1Tags.NULL || itag == Asn1Tags.END_OF_CONTENTS)) {
-                /* Treat NULL and END_OF_CONTENTS exceptionally. No additional
-                 * encoding step needed since they have no value to encode */
-                 object.encodeTo(out);
-            } else {
-                encodeTo(ctx, value, out);
             }
         }
         
@@ -457,6 +479,8 @@ public class Asn1 {
             try {
                 encodeTo(getCodec(), getObject(), new EncodeContext(this, ctx.getRuntime(), value), out);
             } catch (Exception ex) {
+                if (ex instanceof RaiseException)
+                    throw (RaiseException)ex;
                 throw Errors.newSerializeError(ctx.getRuntime(), ex.getMessage());
             }
         }
@@ -473,10 +497,8 @@ public class Asn1 {
                              EncodeContext ctx, 
                              OutputStream out) throws IOException {
             byte[] encoded;
-            if (codec != null)
-                encoded = codec.encode(ctx);
-            else
-                encoded = Asn1Codecs.DEFAULT.encode(ctx);
+            codec.validate(new ValidateContext(ctx.getReceiver(), ctx.getRuntime(), ctx.getValue()));
+            encoded = codec.encode(ctx);
             object.getHeader().getLength().setLength(encoded == null ? 0 : encoded.length);
             object.setValue(encoded);
             object.encodeTo(out);
@@ -509,12 +531,14 @@ public class Asn1 {
         }
         
         @JRubyMethod(frame=true)
-        public IRubyObject each(ThreadContext ctx, Block block) {
-            RubyArray arr = (RubyArray)value(ctx);
-            for (IRubyObject obj : arr.toJavaArray()) {
-                block.yield(ctx, obj);
-            }
-            return ctx.getRuntime().getNil();
+        public IRubyObject each(ThreadContext ctx, final Block block) {
+            return RubyEnumerable.callEach(ctx.getRuntime(), ctx, value(ctx), new BlockCallback() {
+                @Override
+                public IRubyObject call(ThreadContext tc, IRubyObject[] iros, Block blk) {
+                    block.yield(tc, iros[0]);
+                    return tc.getRuntime().getNil();
+                }
+            });
         }
         
         @Override
@@ -527,6 +551,8 @@ public class Asn1 {
             try {
                 encodeTo(ctx, getObject(), value, out);
             } catch (Exception ex) {
+                if (ex instanceof RaiseException)
+                    throw (RaiseException)ex;
                 throw Errors.newSerializeError(ctx.getRuntime(), ex.getMessage());
             }
         }
@@ -534,7 +560,7 @@ public class Asn1 {
         static IRubyObject decodeValue(ThreadContext ctx, byte[] value) {
             Ruby rt = ctx.getRuntime();
             if (value == null)
-                return rt.getNil();
+                return rt.newArray();
             InputStream in = new ByteArrayInputStream(value);
             List<IRubyObject> list = new ArrayList<IRubyObject>();
             ParsedHeader h;
@@ -547,6 +573,9 @@ public class Asn1 {
         }
         
         static void encodeTo(ThreadContext ctx, Asn1Object object, IRubyObject ary, OutputStream out) throws IOException {
+            if (!ary.respondsTo("each"))
+                throw Errors.newASN1Error(ctx.getRuntime(), "Value for constructed type must respond to each");
+            
             impl.krypt.asn1.Header h = object.getHeader();
             Length l = h.getLength();
             /* If the length encoding has been cached or if we have an infinite
@@ -566,15 +595,30 @@ public class Asn1 {
             }
         }
         
-        private static void encodeSubElements(ThreadContext ctx, IRubyObject ary, OutputStream out) {
-            if (!(ary instanceof RubyArray))
-                throw Errors.newError(ctx.getRuntime(), "ArgumentError", "Value is not an array");
-            
-            for (IRubyObject value : ((RubyArray)ary).toJavaArray()) {
-                if (!(value instanceof Asn1Data))
-                    throw Errors.newError(ctx.getRuntime(), "ArgumentError", "Value is not an ASN1Data");
-                ((Asn1Data)value).encodeToInternal(ctx, out);
+        private static void encodeSubElements(ThreadContext ctx, IRubyObject enumerable, final OutputStream out) {
+            if (enumerable instanceof RubyArray) {
+                for (IRubyObject value : ((RubyArray)enumerable).toJavaArray()) {
+                    if (!(value instanceof Asn1Data))
+                        throw Errors.newError(ctx.getRuntime(), "ArgumentError", "Value is not an ASN1Data");
+                    ((Asn1Data)value).encodeToInternal(ctx, out);
+                }
             }
+            else {
+                RubyEnumerable.callEach(ctx.getRuntime(), ctx, enumerable, new BlockCallback() {
+                    @Override
+                    public IRubyObject call(ThreadContext tc, IRubyObject[] iros, Block blk) {
+                        IRubyObject sub = iros[0];
+                        encodeSingleSubElement(tc, sub, out);
+                        return tc.getRuntime().getNil();
+                    }
+                });
+            }
+        }
+        
+        private static void encodeSingleSubElement(ThreadContext ctx, IRubyObject value, OutputStream out) {
+            if (!(value instanceof Asn1Data))
+                throw Errors.newError(ctx.getRuntime(), "ArgumentError", "Value is not an ASN1Data");
+            ((Asn1Data)value).encodeToInternal(ctx, out);
         }
     }
     

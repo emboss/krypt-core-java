@@ -40,6 +40,7 @@ import org.joda.time.format.DateTimeFormat;
 import org.joda.time.format.DateTimeFormatter;
 import org.jruby.Ruby;
 import org.jruby.RubyBignum;
+import org.jruby.RubyBoolean;
 import org.jruby.RubyFixnum;
 import org.jruby.RubyNumeric;
 import org.jruby.RubyString;
@@ -48,6 +49,7 @@ import org.jruby.ext.krypt.Errors;
 import org.jruby.ext.krypt.asn1.Asn1.Asn1Codec;
 import org.jruby.ext.krypt.asn1.Asn1.DecodeContext;
 import org.jruby.ext.krypt.asn1.Asn1.EncodeContext;
+import org.jruby.ext.krypt.asn1.Asn1.ValidateContext;
 import org.jruby.runtime.builtin.IRubyObject;
 import org.jruby.runtime.marshal.MarshalStream;
 import org.jruby.util.ByteList;
@@ -76,6 +78,12 @@ public class Asn1Codecs {
             else
                 return runtime.newString(new ByteList(value, false));
         }
+
+        @Override
+        public void validate(ValidateContext ctx) {
+            if (!(ctx.getValue() instanceof RubyString))
+                throw Errors.newASN1Error(ctx.getRuntime(), "Value must be a string");
+        }
     };
     
     private static final Asn1Codec END_OF_CONTENTS = new Asn1Codec() {
@@ -92,6 +100,12 @@ public class Asn1Codecs {
             if (!(value == null || value.length == 0))
                 throw Errors.newASN1Error(runtime, "Invalid end of contents encoding");
             return runtime.getNil();
+        }
+
+        @Override
+        public void validate(ValidateContext ctx) {
+            if (!ctx.getValue().isNil())
+                throw Errors.newASN1Error(ctx.getRuntime(), "Value for END_OF_CONTENTS must be nil");
         }
     };
     
@@ -118,6 +132,13 @@ public class Asn1Codecs {
                 return runtime.getFalse();
             else
                 return runtime.getTrue();
+        }
+
+        @Override
+        public void validate(ValidateContext ctx) {
+            IRubyObject value = ctx.getValue();
+            if (!(value instanceof RubyBoolean))
+                throw Errors.newASN1Error(ctx.getRuntime(), "Value for BOOLEAN must be either true or false");
         }
     };
     
@@ -151,6 +172,13 @@ public class Asn1Codecs {
                 throw Errors.newASN1Error(runtime, "Invalid integer encoding");
             return RubyBignum.newBignum(runtime, new BigInteger(value));
         }
+
+        @Override
+        public void validate(ValidateContext ctx) {
+            IRubyObject value = ctx.getValue();
+            if (!(value instanceof RubyFixnum || value instanceof RubyBignum))
+                throw Errors.newASN1Error(ctx.getRuntime(), "Value for integer type must be an integer Number");
+        }
     };
     
     private static final Asn1Codec BIT_STRING = new Asn1Codec() {
@@ -180,6 +208,11 @@ public class Asn1Codecs {
             recv.getInstanceVariables().setInstanceVariable("unused_bits", RubyNumeric.int2fix(runtime, unusedBits));
             return ret;
         }
+
+        @Override
+        public void validate(ValidateContext ctx) {
+            DEFAULT.validate(ctx);
+        }
     };
     
     private static final Asn1Codec OCTET_STRING = DEFAULT;
@@ -198,6 +231,12 @@ public class Asn1Codecs {
             if (!(value == null || value.length == 0))
                 throw Errors.newASN1Error(runtime, "Invalid null encoding");
             return runtime.getNil();
+        }
+
+        @Override
+        public void validate(ValidateContext ctx) {
+            if (!ctx.getValue().isNil())
+                throw Errors.newASN1Error(ctx.getRuntime(), "Value must be nil for NULL");
         }
     };
     
@@ -265,6 +304,12 @@ public class Asn1Codecs {
                 f++;
             return f - 1;
         }
+
+        @Override
+        public void validate(ValidateContext ctx) {
+            if (!(ctx.getValue() instanceof RubyString))
+                throw Errors.newASN1Error(ctx.getRuntime(), "Value for OBJECT IDENTIFIER must be a String");
+        }
     };
     
     static int determineNumberOfShifts(long value, int shiftBy) {
@@ -312,6 +357,11 @@ public class Asn1Codecs {
             obj.asString().associateEncoding(UTF8Encoding.INSTANCE);
             return obj;
         }
+
+        @Override
+        public void validate(ValidateContext ctx) {
+            DEFAULT.validate(ctx);
+        }
     };
     
     private static final DateTimeFormatter UTC_FORMATTER = DateTimeFormat.forPattern("yyMMddHHmmss'Z'").withZone(DateTimeZone.UTC);
@@ -335,11 +385,14 @@ public class Asn1Codecs {
     
     private static byte[] encodeFixnumTime(Ruby runtime, IRubyObject value, DateTimeFormatter formatter) {
         try {
+            long val = RubyNumeric.num2long(value);
+            if (val < 0)
+                throw runtime.newArgumentError("Negative time value given");
             /* Ruby time is *seconds* since the epoch */
-            DateTime dt = new DateTime(RubyNumeric.num2long(value) * 1000, DateTimeZone.UTC);
+            DateTime dt = new DateTime(val * 1000, DateTimeZone.UTC);
             return dt.toString(formatter).getBytes();
         } catch (Exception ex) {
-            throw Errors.newASN1Error(runtime, "Error while encoding time value: " + ex.getMessage());
+            throw runtime.newArgumentError("Error while encoding time value: " + ex.getMessage());
         }
     }
     
@@ -354,6 +407,12 @@ public class Asn1Codecs {
         }
     }
     
+    private static void validateTime(ValidateContext ctx) {
+        IRubyObject value = ctx.getValue();
+        if (!(value instanceof RubyTime || value instanceof RubyFixnum || value instanceof RubyString))
+            throw Errors.newASN1Error(ctx.getRuntime(), "Time type must be either a Time, a Fixnum or a String");
+    }
+    
     private static final Asn1Codec UTC_TIME = new Asn1Codec() {
 
         @Override
@@ -364,6 +423,11 @@ public class Asn1Codecs {
         @Override
         public IRubyObject decode(DecodeContext ctx) {
             return decodeTime(ctx.getRuntime(), ctx.getValue(), UTC_FORMATTER);
+        }
+
+        @Override
+        public void validate(ValidateContext ctx) {
+            validateTime(ctx);
         }
     };
     
@@ -377,6 +441,11 @@ public class Asn1Codecs {
         @Override
         public IRubyObject decode(DecodeContext ctx) {
             return decodeTime(ctx.getRuntime(), ctx.getValue(), GT_FORMATTER);
+        }
+
+        @Override
+        public void validate(ValidateContext ctx) {
+            validateTime(ctx);
         }
     };
     
