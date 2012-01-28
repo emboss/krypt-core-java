@@ -67,7 +67,7 @@ public class Asn1DataClasses {
         switch (args.length) {
         case 3:
             if (!args[2].isNil() && args[1].isNil()) {
-                throw runtime.newArgumentError(("Tag must be specified if tag class is"));
+                throw Errors.newASN1Error(runtime, "Tag must be specified if tag class is");
             }
             tag = args[1];
             tagClass = args[2];
