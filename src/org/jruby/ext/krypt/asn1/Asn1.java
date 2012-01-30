@@ -55,7 +55,6 @@ import org.jruby.RubyNumeric;
 import org.jruby.RubyObject;
 import org.jruby.RubySymbol;
 import org.jruby.anno.JRubyMethod;
-import org.jruby.exceptions.RaiseException;
 import org.jruby.ext.krypt.Errors;
 import org.jruby.ext.krypt.Streams;
 import org.jruby.ext.krypt.asn1.Asn1DataClasses.Asn1BitString;
@@ -155,16 +154,13 @@ public class Asn1 {
     
     static Asn1Codec codecFor(int tag, TagClass tagClass)
     {
-        Asn1Codec codec;
+        Asn1Codec codec = null;
         
-        if (tag < 30 && tagClass.equals(TagClass.UNIVERSAL)) {
+        if (tag < 30 && tagClass.equals(TagClass.UNIVERSAL))
             codec = Asn1Codecs.CODECS[tag];
-            if (codec == null)
-                codec = Asn1Codecs.DEFAULT;
-        }
-        else {
+        if (codec == null)
             codec = Asn1Codecs.DEFAULT;
-        }
+        
         return codec;
     }
     
@@ -202,8 +198,7 @@ public class Asn1 {
                                   Asn1Data data,
                                   IRubyObject value, 
                                   IRubyObject tag, 
-                                  IRubyObject tag_class, 
-                                  boolean isConstructed) {
+                                  IRubyObject tag_class) {
         checkTagAndClass(runtime, tag, tag_class);
         
         int itag = RubyNumeric.fix2int(tag);
@@ -213,7 +208,7 @@ public class Asn1 {
                      data, 
                      itag, 
                      tc, 
-                     isConstructed, 
+                     value.respondsTo("each"), 
                      false);
 
         data.value = value;
@@ -452,21 +447,19 @@ public class Asn1 {
             }
         }
         
-        protected IRubyObject decodeValue(ThreadContext ctx) {
-            if (object.getHeader().getTag().isConstructed()) {
+        private IRubyObject decodeValue(ThreadContext ctx) {
+            if (object.getHeader().getTag().isConstructed())
                 return Asn1Constructive.decodeValue(ctx, object.getValue());
-            } else {
+            else
                 return Asn1Primitive.decodeValue(codec, new DecodeContext(this, ctx.getRuntime(), object.getValue()));
-            }
         }
         
-        protected void encodeTo(ThreadContext ctx, IRubyObject value, OutputStream out) {
+        private void encodeTo(ThreadContext ctx, IRubyObject value, OutputStream out) {
             try {
-                if (object.getHeader().getTag().isConstructed()) {
+                if (object.getHeader().getTag().isConstructed())
                     Asn1Constructive.encodeTo(ctx, object, value, out);
-                } else {
+                else
                     Asn1Primitive.encodeTo(codec, object, new EncodeContext(this, ctx.getRuntime(), value), out);
-                }
             } catch (IOException ex) {
                 throw Errors.newSerializeError(ctx.getRuntime(), ex.getMessage());
             }
@@ -495,17 +488,6 @@ public class Asn1 {
             // do nothing
         }
         
-        @Override
-        protected void encodeTo(ThreadContext ctx, IRubyObject value, OutputStream out) {
-            try {
-                encodeTo(getCodec(), getObject(), new EncodeContext(this, ctx.getRuntime(), value), out);
-            } catch (Exception ex) {
-                if (ex instanceof RaiseException)
-                    throw (RaiseException)ex;
-                throw Errors.newSerializeError(ctx.getRuntime(), ex.getMessage());
-            }
-        }
-        
         static IRubyObject decodeValue(Asn1Codec codec, DecodeContext ctx) {
             if (codec != null)
                 return codec.decode(ctx);
@@ -517,6 +499,12 @@ public class Asn1 {
                              Asn1Object object, 
                              EncodeContext ctx, 
                              OutputStream out) throws IOException {
+            Tag t = object.getHeader().getTag();
+            int itag = t.getTag();
+            
+            if (t.getTagClass().equals(TagClass.UNIVERSAL) && (itag == Asn1Tags.SEQUENCE || itag == Asn1Tags.SET))
+                throw Errors.newASN1Error(ctx.getRuntime(), "Sequence/Set values must be constructed");
+            
             byte[] encoded;
             codec.validate(new ValidateContext(ctx.getReceiver(), ctx.getRuntime(), ctx.getValue()));
             encoded = codec.encode(ctx);
@@ -567,22 +555,6 @@ public class Asn1 {
             });
         }
         
-        @Override
-        protected IRubyObject decodeValue(ThreadContext ctx) {
-            return decodeValue(ctx, getObject().getValue());
-        }
-        
-        @Override
-        protected void encodeTo(ThreadContext ctx, IRubyObject value, OutputStream out) {
-            try {
-                encodeTo(ctx, getObject(), value, out);
-            } catch (Exception ex) {
-                if (ex instanceof RaiseException)
-                    throw (RaiseException)ex;
-                throw Errors.newSerializeError(ctx.getRuntime(), ex.getMessage());
-            }
-        }
-        
         static IRubyObject decodeValue(ThreadContext ctx, byte[] value) {
             Ruby rt = ctx.getRuntime();
             if (value == null)
@@ -598,11 +570,25 @@ public class Asn1 {
             return rt.newArray(list);
         }
         
-        static void encodeTo(ThreadContext ctx, Asn1Object object, IRubyObject ary, OutputStream out) throws IOException {
+        private static void validateConstructed(Ruby runtime, impl.krypt.asn1.Header h, IRubyObject ary) {
             if (!ary.respondsTo("each"))
-                throw Errors.newASN1Error(ctx.getRuntime(), "Value for constructed type must respond to each");
+                throw Errors.newASN1Error(runtime, "Value for constructed type must respond to each");
             
+            Tag t = h.getTag();
+            int itag = t.getTag();
+            
+            if (t.getTagClass().equals(TagClass.UNIVERSAL)) {
+                if (itag != Asn1Tags.SEQUENCE && itag != Asn1Tags.SET && 
+                    !h.getLength().isInfiniteLength()) {
+                 throw Errors.newASN1Error(runtime, "Primitive constructed values must be infinite length");
+                }
+            }
+        }
+        
+        static void encodeTo(ThreadContext ctx, Asn1Object object, IRubyObject ary, OutputStream out) throws IOException {
             impl.krypt.asn1.Header h = object.getHeader();
+            validateConstructed(ctx.getRuntime(), h, ary);
+            
             Length l = h.getLength();
             /* If the length encoding has been cached or if we have an infinite
              * length encoding, we don't need to precompute the length and may
@@ -622,23 +608,29 @@ public class Asn1 {
         }
         
         private static void encodeSubElements(ThreadContext ctx, IRubyObject enumerable, final OutputStream out) {
-            if (enumerable instanceof RubyArray) {
-                for (IRubyObject value : ((RubyArray)enumerable).toJavaArray()) {
-                    if (!(value instanceof Asn1Data))
-                        throw Errors.newError(ctx.getRuntime(), "ArgumentError", "Value is not an ASN1Data");
-                    ((Asn1Data)value).encodeToInternal(ctx, out);
+            if (enumerable instanceof RubyArray)
+                encodeArray((RubyArray)enumerable, ctx, out);
+            else
+                encodeEnumerable(enumerable, ctx, out);
+        }
+        
+        private static void encodeArray(RubyArray ary, ThreadContext ctx, OutputStream out) {
+           for (IRubyObject value : ary.toJavaArray()) {
+                if (!(value instanceof Asn1Data))
+                    throw Errors.newError(ctx.getRuntime(), "ArgumentError", "Value is not an ASN1Data");
+                ((Asn1Data)value).encodeToInternal(ctx, out);
+            } 
+        }
+        
+        private static void encodeEnumerable(IRubyObject enumerable, ThreadContext ctx, final OutputStream out) {
+            RubyEnumerable.callEach(ctx.getRuntime(), ctx, enumerable, new BlockCallback() {
+                @Override
+                public IRubyObject call(ThreadContext tc, IRubyObject[] iros, Block blk) {
+                    IRubyObject sub = iros[0];
+                    encodeSingleSubElement(tc, sub, out);
+                    return tc.getRuntime().getNil();
                 }
-            }
-            else {
-                RubyEnumerable.callEach(ctx.getRuntime(), ctx, enumerable, new BlockCallback() {
-                    @Override
-                    public IRubyObject call(ThreadContext tc, IRubyObject[] iros, Block blk) {
-                        IRubyObject sub = iros[0];
-                        encodeSingleSubElement(tc, sub, out);
-                        return tc.getRuntime().getNil();
-                    }
-                });
-            }
+            });
         }
         
         private static void encodeSingleSubElement(ThreadContext ctx, IRubyObject value, OutputStream out) {

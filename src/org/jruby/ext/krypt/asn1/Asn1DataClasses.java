@@ -91,7 +91,7 @@ public class Asn1DataClasses {
         return new TagAndClass(tag, tagClass);
     }
     
-    private static IRubyObject init(Asn1Data data, ThreadContext ctx, IRubyObject[] args, int defaultTag, boolean constructed) {
+    private static IRubyObject init(Asn1Data data, ThreadContext ctx, IRubyObject[] args, int defaultTag) {
         Ruby runtime = ctx.getRuntime();
         IRubyObject value = args[0];
         IRubyObject tag, tagClass;
@@ -104,8 +104,7 @@ public class Asn1DataClasses {
                                data,
                                value, 
                                tag, 
-                               tagClass, 
-                               constructed);
+                               tagClass);
         
         /* override default behavior to support Primitives with tag classes
          * other than UNIVERSAL */
@@ -144,8 +143,7 @@ public class Asn1DataClasses {
                                    this,
                                    runtime.getNil(), 
                                    runtime.newFixnum(Asn1Tags.END_OF_CONTENTS), 
-                                   runtime.newSymbol(TagClass.UNIVERSAL.name()), 
-                                   false);
+                                   runtime.newSymbol(TagClass.UNIVERSAL.name()));
             return this;
         }
     }
@@ -169,7 +167,7 @@ public class Asn1DataClasses {
         
         @JRubyMethod(required=1, optional=2)
         public IRubyObject initialize(ThreadContext ctx, IRubyObject[] args) {
-            return init(this, ctx, args, Asn1Tags.BOOLEAN, false);
+            return init(this, ctx, args, Asn1Tags.BOOLEAN);
         }
     }
     
@@ -192,7 +190,7 @@ public class Asn1DataClasses {
         
         @JRubyMethod(required=1, optional=2)
         public IRubyObject initialize(ThreadContext ctx, IRubyObject[] args) {
-            return init(this, ctx, args, Asn1Tags.INTEGER, false);
+            return init(this, ctx, args, Asn1Tags.INTEGER);
         }
     }
     
@@ -215,7 +213,7 @@ public class Asn1DataClasses {
         
         @JRubyMethod(required=1, optional=2)
         public IRubyObject initialize(ThreadContext ctx, IRubyObject[] args) {
-            IRubyObject val = init(this, ctx, args, Asn1Tags.BIT_STRING, false);
+            IRubyObject val = init(this, ctx, args, Asn1Tags.BIT_STRING);
             val.getInstanceVariables().setInstanceVariable("unused_bits", RubyFixnum.zero(ctx.getRuntime()));
             return val;
         }
@@ -240,7 +238,7 @@ public class Asn1DataClasses {
         
         @JRubyMethod(required=1, optional=2)
         public IRubyObject initialize(ThreadContext ctx, IRubyObject[] args) {
-            return init(this, ctx, args, Asn1Tags.OCTET_STRING, false);
+            return init(this, ctx, args, Asn1Tags.OCTET_STRING);
         }
     }
     
@@ -269,13 +267,12 @@ public class Asn1DataClasses {
                                        this, 
                                        runtime.getNil(), 
                                        runtime.newFixnum(Asn1Tags.NULL), 
-                                       runtime.newSymbol(TagClass.UNIVERSAL.name()), 
-                                       false);
+                                       runtime.newSymbol(TagClass.UNIVERSAL.name()));
                 return this;
             } else {
                 if (!args[0].isNil())
                     throw runtime.newArgumentError("Value for ASN.1 NULL must be nil");
-                return init(this, ctx, args, Asn1Tags.NULL, false);
+                return init(this, ctx, args, Asn1Tags.NULL);
             }
         }
     }
@@ -299,7 +296,7 @@ public class Asn1DataClasses {
         
         @JRubyMethod(required=1, optional=2)
         public IRubyObject initialize(ThreadContext ctx, IRubyObject[] args) {
-            return init(this, ctx, args, Asn1Tags.OBJECT_ID, false);
+            return init(this, ctx, args, Asn1Tags.OBJECT_ID);
         }
     }
     
@@ -322,7 +319,7 @@ public class Asn1DataClasses {
         
         @JRubyMethod(required=1, optional=2)
         public IRubyObject initialize(ThreadContext ctx, IRubyObject[] args) {
-            return init(this, ctx, args, Asn1Tags.ENUMERATED, false);
+            return init(this, ctx, args, Asn1Tags.ENUMERATED);
         }
     }
     
@@ -345,7 +342,7 @@ public class Asn1DataClasses {
         
         @JRubyMethod(required=1, optional=2)
         public IRubyObject initialize(ThreadContext ctx, IRubyObject[] args) {
-            return init(this, ctx, args, Asn1Tags.UTF8_STRING, false);
+            return init(this, ctx, args, Asn1Tags.UTF8_STRING);
         }
     }
     
@@ -368,7 +365,7 @@ public class Asn1DataClasses {
         
         @JRubyMethod(required=1, optional=2)
         public IRubyObject initialize(ThreadContext ctx, IRubyObject[] args) {
-            return init(this, ctx, args, Asn1Tags.SEQUENCE, true);
+            return init(this, ctx, args, Asn1Tags.SEQUENCE);
         }
     }
     
@@ -391,7 +388,7 @@ public class Asn1DataClasses {
         
         @JRubyMethod(required=1, optional=2)
         public IRubyObject initialize(ThreadContext ctx, IRubyObject[] args) {
-            return init(this, ctx, args, Asn1Tags.SET, true);
+            return init(this, ctx, args, Asn1Tags.SET);
         }
     }
     
@@ -414,7 +411,7 @@ public class Asn1DataClasses {
         
         @JRubyMethod(required=1, optional=2)
         public IRubyObject initialize(ThreadContext ctx, IRubyObject[] args) {
-            return init(this, ctx, args, Asn1Tags.NUMERIC_STRING, false);
+            return init(this, ctx, args, Asn1Tags.NUMERIC_STRING);
         }
     }
     
@@ -437,7 +434,7 @@ public class Asn1DataClasses {
         
         @JRubyMethod(required=1, optional=2)
         public IRubyObject initialize(ThreadContext ctx, IRubyObject[] args) {
-            return init(this, ctx, args, Asn1Tags.PRINTABLE_STRING, false);
+            return init(this, ctx, args, Asn1Tags.PRINTABLE_STRING);
         }
     }
     
@@ -460,7 +457,7 @@ public class Asn1DataClasses {
         
         @JRubyMethod(required=1, optional=2)
         public IRubyObject initialize(ThreadContext ctx, IRubyObject[] args) {
-            return init(this, ctx, args, Asn1Tags.T61_STRING, false);
+            return init(this, ctx, args, Asn1Tags.T61_STRING);
         }
     }
     
@@ -483,7 +480,7 @@ public class Asn1DataClasses {
         
         @JRubyMethod(required=1, optional=2)
         public IRubyObject initialize(ThreadContext ctx, IRubyObject[] args) {
-            return init(this, ctx, args, Asn1Tags.VIDEOTEX_STRING, false);
+            return init(this, ctx, args, Asn1Tags.VIDEOTEX_STRING);
         }
     }
     
@@ -506,7 +503,7 @@ public class Asn1DataClasses {
         
         @JRubyMethod(required=1, optional=2)
         public IRubyObject initialize(ThreadContext ctx, IRubyObject[] args) {
-            return init(this, ctx, args, Asn1Tags.IA5_STRING, false);
+            return init(this, ctx, args, Asn1Tags.IA5_STRING);
         }
     }
     
@@ -529,7 +526,7 @@ public class Asn1DataClasses {
         
         @JRubyMethod(required=1, optional=2)
         public IRubyObject initialize(ThreadContext ctx, IRubyObject[] args) {
-            return init(this, ctx, args, Asn1Tags.UTC_TIME, false);
+            return init(this, ctx, args, Asn1Tags.UTC_TIME);
         }
     }
     
@@ -552,7 +549,7 @@ public class Asn1DataClasses {
         
         @JRubyMethod(required=1, optional=2)
         public IRubyObject initialize(ThreadContext ctx, IRubyObject[] args) {
-            return init(this, ctx, args, Asn1Tags.GENERALIZED_TIME, false);
+            return init(this, ctx, args, Asn1Tags.GENERALIZED_TIME);
         }
     }
     
@@ -575,7 +572,7 @@ public class Asn1DataClasses {
         
         @JRubyMethod(required=1, optional=2)
         public IRubyObject initialize(ThreadContext ctx, IRubyObject[] args) {
-            return init(this, ctx, args, Asn1Tags.GRAPHIC_STRING, false);
+            return init(this, ctx, args, Asn1Tags.GRAPHIC_STRING);
         }
     }
     
@@ -598,7 +595,7 @@ public class Asn1DataClasses {
         
         @JRubyMethod(required=1, optional=2)
         public IRubyObject initialize(ThreadContext ctx, IRubyObject[] args) {
-            return init(this, ctx, args, Asn1Tags.ISO64_STRING, false);
+            return init(this, ctx, args, Asn1Tags.ISO64_STRING);
         }
     }
     
@@ -621,7 +618,7 @@ public class Asn1DataClasses {
         
         @JRubyMethod(required=1, optional=2)
         public IRubyObject initialize(ThreadContext ctx, IRubyObject[] args) {
-            return init(this, ctx, args, Asn1Tags.GENERAL_STRING, false);
+            return init(this, ctx, args, Asn1Tags.GENERAL_STRING);
         }
     }
     
@@ -644,7 +641,7 @@ public class Asn1DataClasses {
         
         @JRubyMethod(required=1, optional=2)
         public IRubyObject initialize(ThreadContext ctx, IRubyObject[] args) {
-            return init(this, ctx, args, Asn1Tags.UNIVERSAL_STRING, false);
+            return init(this, ctx, args, Asn1Tags.UNIVERSAL_STRING);
         }
     }
     
@@ -667,7 +664,7 @@ public class Asn1DataClasses {
         
         @JRubyMethod(required=1, optional=2)
         public IRubyObject initialize(ThreadContext ctx, IRubyObject[] args) {
-            return init(this, ctx, args, Asn1Tags.BMP_STRING, false);
+            return init(this, ctx, args, Asn1Tags.BMP_STRING);
         }
     }
 }
