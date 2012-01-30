@@ -189,6 +189,7 @@ public class Asn1Codecs {
             IRubyObject value = ctx.getValue();
             IRubyObject unusedBitsIv = recv.getInstanceVariables().getInstanceVariable("unused_bits");
             int unusedBits = RubyNumeric.fix2int(unusedBitsIv);
+            checkUnusedBits(ctx.getRuntime(), unusedBits);
             byte[] bytes = value.convertToString().getBytes();
             byte[] ret = new byte[bytes.length + 1];
             ret[0] = (byte)(unusedBits & 0xff);
@@ -204,16 +205,24 @@ public class Asn1Codecs {
             if (value == null)
                 throw Errors.newASN1Error(runtime, "Invalid bit string encoding");
             int unusedBits = value[0] & 0xff;
+            checkUnusedBits(runtime, unusedBits);
             IRubyObject ret = runtime.newString(new ByteList(value, 1, value.length - 1, false));
             recv.getInstanceVariables().setInstanceVariable("unused_bits", RubyNumeric.int2fix(runtime, unusedBits));
             return ret;
         }
-
+        
         @Override
         public void validate(ValidateContext ctx) {
             DEFAULT.validate(ctx);
         }
+        
+        
     };
+    
+    private static void checkUnusedBits(Ruby runtime, int unusedBits) {
+        if (unusedBits < 0 || unusedBits > 7)
+            throw Errors.newASN1Error(runtime, "Unused bits must be 0..7");
+    }
     
     private static final Asn1Codec OCTET_STRING = DEFAULT;
     

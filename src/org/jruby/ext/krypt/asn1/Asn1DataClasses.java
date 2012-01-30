@@ -217,6 +217,20 @@ public class Asn1DataClasses {
             val.getInstanceVariables().setInstanceVariable("unused_bits", RubyFixnum.zero(ctx.getRuntime()));
             return val;
         }
+        
+        @JRubyMethod(name={"unused_bits="})
+        public IRubyObject set_unused_bits(ThreadContext ctx, IRubyObject value) {
+            getInstanceVariables().setInstanceVariable("unused_bits", value);
+            return value;
+        }
+        
+        @JRubyMethod
+        public IRubyObject unused_bits(ThreadContext ctx) {
+            if (!isDecoded()) {
+                decodeValue(ctx);
+            }
+            return getInstanceVariables().getInstanceVariable("unused_bits");
+        }
     }
     
     public static class Asn1OctetString extends Asn1Primitive {

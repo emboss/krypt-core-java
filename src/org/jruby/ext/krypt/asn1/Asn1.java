@@ -291,6 +291,10 @@ public class Asn1 {
             this.codec = codec;
         }
         
+        protected boolean isDecoded() {
+            return this.value != null;
+        }
+        
         protected Asn1Data(Ruby runtime, 
                          RubyClass type, 
                          Asn1Object object) {
@@ -360,8 +364,8 @@ public class Asn1 {
         
         @JRubyMethod
         public synchronized IRubyObject value(ThreadContext ctx) {
-            if (value == null) {
-                value = decodeValue(ctx);
+            if (!isDecoded()) {
+                decodeValue(ctx);
             }
             return value;
         }
@@ -448,11 +452,11 @@ public class Asn1 {
             }
         }
         
-        private IRubyObject decodeValue(ThreadContext ctx) {
+        protected final void decodeValue(ThreadContext ctx) {
             if (object.getHeader().getTag().isConstructed())
-                return Asn1Constructive.decodeValue(ctx, object.getValue());
+                this.value = Asn1Constructive.decodeValue(ctx, object.getValue());
             else
-                return Asn1Primitive.decodeValue(codec, new DecodeContext(this, ctx.getRuntime(), object.getValue()));
+                this.value = Asn1Primitive.decodeValue(codec, new DecodeContext(this, ctx.getRuntime(), object.getValue()));
         }
         
         private void encodeTo(ThreadContext ctx, IRubyObject value, OutputStream out) {
@@ -769,8 +773,6 @@ public class Asn1 {
         cASN1Set             = mASN1.defineClassUnder("Set",cASN1Constructive, Asn1Set.ALLOCATOR);
         cASN1Set.defineAnnotatedMethods(Asn1Set.class);
 
-        cASN1BitString.attr_accessor(runtime.getCurrentContext(), new IRubyObject[]{runtime.newSymbol("unused_bits")});
-        
         try {
             Class<?>[] params = new Class<?>[] { Ruby.class, RubyClass.class, Asn1Object.class };
             ASN1_INFOS = new Object[][] {
