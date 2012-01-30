@@ -100,8 +100,8 @@ public class Asn1DataClasses {
         tag = tac.tag;
         tagClass = tac.tagClass;
         
-        Asn1.defaultInitialize(data, 
-                               runtime, 
+        Asn1.defaultInitialize(runtime,
+                               data,
                                value, 
                                tag, 
                                tagClass, 
@@ -140,12 +140,12 @@ public class Asn1DataClasses {
                     throw runtime.newArgumentError("Value must be nil for END_OF_CONTENTS");
             }
             
-            Asn1.defaultInitialize(this, 
-                              runtime, 
-                              runtime.getNil(), 
-                              runtime.newFixnum(Asn1Tags.END_OF_CONTENTS), 
-                              runtime.newSymbol(TagClass.UNIVERSAL.name()), 
-                              false);
+            Asn1.defaultInitialize(runtime,
+                                   this,
+                                   runtime.getNil(), 
+                                   runtime.newFixnum(Asn1Tags.END_OF_CONTENTS), 
+                                   runtime.newSymbol(TagClass.UNIVERSAL.name()), 
+                                   false);
             return this;
         }
     }
@@ -265,8 +265,8 @@ public class Asn1DataClasses {
         public IRubyObject initialize(ThreadContext ctx, IRubyObject[] args) {
             Ruby runtime = ctx.getRuntime();
             if (args.length == 0) {
-                Asn1.defaultInitialize(this, 
-                                       runtime, 
+                Asn1.defaultInitialize(runtime,
+                                       this, 
                                        runtime.getNil(), 
                                        runtime.newFixnum(Asn1Tags.NULL), 
                                        runtime.newSymbol(TagClass.UNIVERSAL.name()), 

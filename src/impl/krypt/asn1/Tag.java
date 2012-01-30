@@ -63,7 +63,7 @@ public class Tag {
     }
     
     public void setConstructed(boolean isConstructed) {
-        if (isConstructed == isConstructed)
+        if (isConstructed == this.isConstructed)
             return;
         this.isConstructed = isConstructed;
         this.encoding = null;
