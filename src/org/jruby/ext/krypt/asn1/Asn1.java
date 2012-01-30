@@ -49,6 +49,7 @@ import org.jruby.RubyArray;
 import org.jruby.RubyBoolean;
 import org.jruby.RubyClass;
 import org.jruby.RubyEnumerable;
+import org.jruby.RubyEnumerator;
 import org.jruby.RubyFixnum;
 import org.jruby.RubyModule;
 import org.jruby.RubyNumeric;
@@ -546,7 +547,10 @@ public class Asn1 {
         
         @JRubyMethod(frame=true)
         public IRubyObject each(ThreadContext ctx, final Block block) {
-            return RubyEnumerable.callEach(ctx.getRuntime(), ctx, value(ctx), new BlockCallback() {
+            if (!block.isGiven()) {
+                return value(ctx).callMethod(ctx, "each");
+            }
+            return RubyEnumerable.callEach19(ctx.getRuntime(), ctx, value(ctx), new BlockCallback() {
                 @Override
                 public IRubyObject call(ThreadContext tc, IRubyObject[] iros, Block blk) {
                     block.yield(tc, iros[0]);

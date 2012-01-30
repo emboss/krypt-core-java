@@ -80,10 +80,10 @@ public class Asn1DataClasses {
             tag = runtime.newFixnum(defaultTag);
             tagClass = runtime.newSymbol(TagClass.UNIVERSAL.name());
             break;
-        case 0:
+        /*case 0: #currently not possible by design
             tag = runtime.newFixnum(defaultTag);
             tagClass = runtime.newSymbol(TagClass.UNIVERSAL.name());
-            break;
+            break;*/
         default:
             throw new IllegalStateException("caller must restrict number of args <= 3");
         }
