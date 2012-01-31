@@ -36,6 +36,8 @@ package org.jruby.ext.krypt.asn1;
  */
 public class Asn1Tags {
     
+    private Asn1Tags() {}
+    
     public static final int END_OF_CONTENTS   = 0x00;
     public static final int BOOLEAN           = 0x01;
     public static final int INTEGER           = 0x02;
