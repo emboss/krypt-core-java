@@ -151,14 +151,8 @@ public class Asn1Codecs {
             if (value instanceof RubyFixnum) {
                 return BigInteger.valueOf(RubyNumeric.num2long(value)).toByteArray();
             } else if (value instanceof RubyBignum) {
-                ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                try {
-                    MarshalStream ms = new MarshalStream(runtime, baos, -1);
-                    RubyBignum.marshalTo((RubyBignum)value, ms);
-                    return baos.toByteArray();
-                } catch (IOException ex) {
-                    throw Errors.newASN1Error(runtime, ex.getMessage());
-                }
+                BigInteger big = ((RubyBignum)value).getValue();
+                return big.toByteArray();
             } else {
                 throw Errors.newASN1Error(runtime, "Value is not a number");
             }
