@@ -36,6 +36,8 @@ package impl.krypt.asn1;
  */
 class Tags {
     
+    private Tags() {}
+
     public static final byte END_OF_CONTENTS   = (byte)0x00;
     public static final byte BOOLEAN           = (byte)0x01;
     public static final byte INTEGER           = (byte)0x02;
