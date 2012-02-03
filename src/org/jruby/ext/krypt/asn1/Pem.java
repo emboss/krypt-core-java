@@ -27,67 +27,62 @@
 * the provisions above, a recipient may use your version of this file under
 * the terms of any one of the CPL, the GPL or the LGPL.
  */
-package org.jruby.ext.krypt;
+package org.jruby.ext.krypt.asn1;
 
-import java.io.ByteArrayOutputStream;
-import java.io.IOException;
+import java.io.ByteArrayInputStream;
 import java.io.InputStream;
-import java.io.OutputStream;
 import org.jruby.Ruby;
+import org.jruby.RubyClass;
+import org.jruby.RubyModule;
+import org.jruby.anno.JRubyMethod;
+import org.jruby.ext.krypt.Errors;
+import org.jruby.ext.krypt.Streams;
+import org.jruby.runtime.ThreadContext;
 import org.jruby.runtime.builtin.IRubyObject;
-import org.jruby.util.IOInputStream;
-import org.jruby.util.IOOutputStream;
+import org.jruby.util.ByteList;
 
 /**
  * 
  * @author <a href="mailto:Martin.Bosslet@googlemail.com">Martin Bosslet</a>
  */
-public class Streams {
-   private Streams() { }
-   
-   public static InputStream tryWrapAsInputStream(Ruby runtime, IRubyObject io) {
+public class Pem {
+    
+    private Pem() {}
+    
+    @JRubyMethod(meta = true)
+    public static IRubyObject decode(ThreadContext ctx, IRubyObject recv, IRubyObject value) {
         try {
-            return new IOInputStream(io);
-        }
-        catch (IllegalArgumentException ex) {
-            throw runtime.newArgumentError(ex.getMessage());
+            Ruby rt = ctx.getRuntime();
+            InputStream in;
+            if (value.respondsTo("read")) {
+                in = Streams.tryWrapAsInputStream(rt, value);
+            } else {
+                in = new ByteArrayInputStream(toPemIfPossible(value).convertToString().getBytes());
+            }
+            PemInputStream pemin = new PemInputStream(in);
+            byte[] decoded = Streams.consume(pemin);
+            return rt.newString(new ByteList(decoded, false));
+        } catch(Exception e) {
+            throw Errors.newParseError(ctx.getRuntime(), e.getMessage());
         }
     }
     
-   public static OutputStream tryWrapAsOuputStream(Ruby runtime, IRubyObject io) {
-        try {
-            return new IOOutputStream(io);
-        }
-        catch (IllegalArgumentException ex) {
-            throw runtime.newArgumentError(ex.getMessage());
-        }
+    public static IRubyObject toPem(IRubyObject obj) {
+        return obj.callMethod(obj.getRuntime().getCurrentContext(), "to_pem");
     }
-   
-    public static void tryClose(Ruby runtime, InputStream in) {
-        try {
-            in.close();
-        }
-        catch (IOException ex) {
-            throw runtime.newRuntimeError(ex.getMessage());
+
+    public static IRubyObject toPemIfPossible(IRubyObject asn1) {
+        if(asn1.respondsTo("to_pem")) {
+            return toPem(asn1);
+        } else {
+            return asn1;
         }
     }
     
-    public static void tryClose(Ruby runtime, OutputStream out) {
-        try {
-            out.close();
-        }
-        catch (IOException ex) {
-            throw runtime.newRuntimeError(ex.getMessage());
-        }
+    public static void createPem(Ruby runtime, RubyModule krypt, RubyClass kryptError) {
+        RubyModule mPEM = runtime.defineModuleUnder("PEM", krypt);
+        mPEM.defineClassUnder("PEMError", kryptError, kryptError.getAllocator());
+        mPEM.defineAnnotatedMethods(Pem.class);
     }
     
-    public static byte[] consume(InputStream in) throws IOException {
-        ByteArrayOutputStream baos = new ByteArrayOutputStream();
-        int read;
-        byte[] buffer = new byte[8192];
-        while ((read = in.read(buffer)) != -1) {
-            baos.write(buffer, 0, read);
-        }
-        return baos.toByteArray();
-    }
 }

@@ -53,6 +53,10 @@ public class Errors {
         return newError(rt, "Krypt::ASN1::ASN1Error", message);
     }
     
+    public static RaiseException newPEMError(Ruby rt, String message) {
+        return newError(rt, "Krypt::PEM::PEMError", message);
+    }
+    
     public static RaiseException newError(Ruby rt, String path, String message) {
         return new RaiseException(rt, getClassFromPath(rt, path), message, true);
     }

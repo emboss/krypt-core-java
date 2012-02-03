@@ -33,6 +33,7 @@ import org.jruby.Ruby;
 import org.jruby.RubyClass;
 import org.jruby.RubyModule;
 import org.jruby.ext.krypt.asn1.Asn1;
+import org.jruby.ext.krypt.asn1.Pem;
 
 /**
  * 
@@ -45,5 +46,6 @@ public class KryptCoreService {
         RubyClass standardError = runtime.getClass("StandardError");
         RubyClass kryptError = krypt.defineClassUnder("KryptError", standardError, standardError.getAllocator());
         Asn1.createAsn1(runtime, krypt, kryptError);
+        Pem.createPem(runtime, krypt, kryptError);
     }    
 }
