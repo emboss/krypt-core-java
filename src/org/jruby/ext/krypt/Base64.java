@@ -165,7 +165,7 @@ public class Base64 {
                 break;
             }
             idx = b & 0xff;
-            if (idx > B64TABLEINV.length)
+            if (idx >= B64TABLEINV.length)
                 continue;
             byte inv = B64TABLEINV[idx];
             if (inv < 0)
@@ -190,7 +190,7 @@ public class Base64 {
     
     public static byte[] decode(byte[] bytes) throws IOException {
         if (bytes == null)
-            throw new NullPointerException("bytes is null");
+            throw new NullPointerException("bytes null");
         
         int retlen = bytes.length / 4 * 3;
         
