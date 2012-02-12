@@ -406,12 +406,12 @@ public class Asn1Codecs {
         try {
             long val = RubyNumeric.num2long(value);
             if (val < 0)
-                throw runtime.newArgumentError("Negative time value given");
+                throw Errors.newASN1Error(runtime, "Negative time value given");
             /* Ruby time is *seconds* since the epoch */
             DateTime dt = new DateTime(val * 1000, DateTimeZone.UTC);
             return dt.toString(formatter).getBytes();
         } catch (Exception ex) {
-            throw runtime.newArgumentError("Error while encoding time value: " + ex.getMessage());
+            throw Errors.newASN1Error(runtime, "Error while encoding time value: " + ex.getMessage());
         }
     }
     
