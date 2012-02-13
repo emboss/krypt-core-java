@@ -35,9 +35,10 @@ import java.io.FilterInputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.InputStreamReader;
+import java.io.OutputStream;
 import java.io.UnsupportedEncodingException;
-import java.util.ArrayList;
-import java.util.List;
+import java.util.regex.Matcher;
+import java.util.regex.Pattern;
 import org.jruby.ext.krypt.Base64;
 
 /**
@@ -53,7 +54,15 @@ public class PemInputStream extends FilterInputStream {
         super(in);
         b64Buffer = new Base64Buffer(in);
     }
+    
+    public void continueStream() {
+        b64Buffer.continueStream();
+    }
 
+    public String getCurrentName() {
+        return b64Buffer.getName();
+    }
+    
     @Override
     public int read(byte[] b, int off, int len) throws IOException {
         if (len <= 0)
@@ -82,191 +91,61 @@ public class PemInputStream extends FilterInputStream {
         throw new UnsupportedOperationException("Not implemented yet");
     }
     
-    private static class ParseContext {
-        private byte[] buffer;
-        private int offset;
-        
-        public ParseContext(String line) {
-            try {
-                this.buffer = line.getBytes("US-ASCII");
-                this.offset = 0;
-            } catch (UnsupportedEncodingException ex) {
-                throw new RuntimeException(ex);
-            }
-        }
-        
-        public byte currentByte() {
-            return buffer[offset];
-        }
-        
-        public boolean hasNext() {
-            return offset < buffer.length - 1;
-        }
-        
-        public byte nextByte() {
-            return buffer[++offset];
-        }
-    }
-    
-    private interface SingleMatcher {
-        public boolean match(ParseContext ctx);
-    }
-    
-    private static final SingleMatcher WHITESPACE = new SingleMatcher() {
-        private boolean isWhitespace(byte b) {
-            return (b == ' ' || b == '\t');
-        }
-        
-        @Override
-        public boolean match(ParseContext ctx) {
-            byte b = ctx.currentByte();
-            while (isWhitespace(b)) {
-                if (!ctx.hasNext())
-                    return false;
-                b = ctx.nextByte();
-            }
-            return true;
-        }
-    };
-    
-    private static final SingleMatcher SEQ_OF_HYPHENS = new SingleMatcher() {
-        @Override
-        public boolean match(ParseContext ctx) {
-            byte b = ctx.currentByte();
-            if (b != '-')
-                return false;
-            while (b == '-') {
-                if (!ctx.hasNext())
-                    return false;
-                b = ctx.nextByte();
-            }
-            return true;
-        }
-    };
-    
-    private static final SingleMatcher CLOSING_SEQ_OF_HYPHENS = new SingleMatcher() {
-        @Override
-        public boolean match(ParseContext ctx) {
-            byte b = ctx.currentByte();
-            if (b != '-')
-                return false;
-            while (b == '-') {
-                if (!ctx.hasNext())
-                    return true;
-                b = ctx.nextByte();
-            }
-            if (!WHITESPACE.match(ctx))
-                return false;
-            return !ctx.hasNext();
-        }
-    };
-    
-    private static final SingleMatcher FIND_NEXT_HYPHEN = new SingleMatcher() {
-        @Override
-        public boolean match(ParseContext ctx) {
-            byte b = ctx.currentByte();
-            while (b != '-') {
-                if (b == '\n')
-                    return false;
-                if (!ctx.hasNext())
-                    return false;
-                b = ctx.nextByte();
-            }
-            return true;
-        }
-    };
-    
-    private static final class StringMatcher implements SingleMatcher {
-        private final char[] chars;
-        
-        public StringMatcher(String s) {
-            this.chars = s.toCharArray();
-        }
-
-        @Override
-        public boolean match(ParseContext ctx) {
-            byte b = ctx.currentByte();
-            
-            for (char c : chars) {
-                if (b != c)
-                    return false;
-                if (!ctx.hasNext())
-                    return false;
-                b = ctx.nextByte();
-            }
-            return true;
-        }
-    }    
-        
-    private static class SequentialMatcher {
-        private final List<SingleMatcher> matches;
-        private final ParseContext ctx;
-
-        public SequentialMatcher(List<SingleMatcher> matches, ParseContext ctx) {
-            this.matches = matches;
-            this.ctx = ctx;
-        }
-        
-        public boolean match() {
-            for (SingleMatcher single : matches) {
-                if (!single.match(ctx))
-                    return false;
-            }
-            return true;
-        }
-    }
-    
     private static abstract class PemLineMatcher {
-        private final SequentialMatcher matcher;
+        private final Pattern pattern;
+        private final String line;
+        private String name;
         
-        public PemLineMatcher(String line, final String beginOrEnd, final String[] label) {
-            ParseContext ctx = new ParseContext(line);
-            this.matcher = new SequentialMatcher(new ArrayList<SingleMatcher>() {{
-                add(WHITESPACE);
-                add(SEQ_OF_HYPHENS);
-                add(WHITESPACE);
-                add(new StringMatcher(beginOrEnd));
-                add(WHITESPACE);
-                if (label != null) {
-                    for (String l : label) {
-                        add(new StringMatcher(l));
-                        add(WHITESPACE);
-                    }
-                }
-                add(FIND_NEXT_HYPHEN);
-                add(CLOSING_SEQ_OF_HYPHENS);
-            }}, ctx);
+        public PemLineMatcher(String line, final String beginOrEnd) {
+            this.pattern = Pattern.compile("^-----" + beginOrEnd + " (\\w(\\w|\\s)+)-----$");
+            this.line = line;
         }
         
         public boolean match() throws IOException {
-            return matcher.match();
+            Matcher m = pattern.matcher(line);
+            if (m.matches()) {
+                name = m.group(1);
+                if (name == null)
+                    return false;
+                return true;
+            }
+            return false;
+        }
+        
+        public String getName() {
+            return name;
         }
     }
     
     private static class PemHeaderMatcher extends PemLineMatcher{
         public PemHeaderMatcher(String line) {
-            this(line, null);
-        }
-        
-        public PemHeaderMatcher(String line, final String[] label) {
-            super(line, "BEGIN", label);
+            super(line, "BEGIN");
         }
     }
     
     private static class PemFooterMatcher extends PemLineMatcher{
-        public PemFooterMatcher(String line) {
-            this(line, null);
-        }
+        private final String name;
         
-        public PemFooterMatcher(String line, final String[] label) {
-            super(line, "END", label);
+        public PemFooterMatcher(String line, String name) {
+            super(line, "END");
+            this.name = name;
+        }
+
+        @Override
+        public boolean match() throws IOException {
+            boolean match = super.match();
+            if (match && getName().equals(name))
+                return true;
+            else
+                return false;
         }
     }
     
     private static enum State {
         HEADER,
         CONTENT,
-        FOOTER
+        FOOTER,
+        DONE
     }
     
     private static class Base64Buffer {
@@ -274,10 +153,10 @@ public class PemInputStream extends FilterInputStream {
         
         private final BufferedReader in;
         private State state = State.HEADER;
-        private String currentLine;
         private byte[] buffer;
         private int bufpos = 0;
         private boolean eof = false;
+        private String name;
         
         public Base64Buffer(InputStream in) {
             try {
@@ -287,73 +166,78 @@ public class PemInputStream extends FilterInputStream {
             }
         }
         
-        private void readLine() throws IOException {
-            currentLine = in.readLine();
+        public void continueStream() {
+            this.buffer = null;
+            this.name = null;
+            this.bufpos = 0;
+            this.state = State.HEADER;
+            this.eof = false;
         }
         
-        private boolean matchHeader() throws IOException {
-            while (currentLine != null) {
-                if (new PemHeaderMatcher(currentLine).match()) {
-                    state = State.CONTENT;
-                    readLine();
-                    return true;
-                }
-                readLine();
+        private int decodeLine(String line, OutputStream out) throws IOException {
+            try {
+                byte[] bytes = line.getBytes("US-ASCII");
+                Base64.decodeTo(bytes, 0, bytes.length, out);
+                return bytes.length;
+            } catch (UnsupportedEncodingException ex) {
+                throw new RuntimeException(ex);
             }
-            return false;
-        }
-        
-        private void matchFooter() throws IOException {
-            if (new PemFooterMatcher(currentLine).match()) {
-                state = State.HEADER;
-                readLine();
-            }
-            else {
-                throw new MalformedPemException("Invalid PEM format");
-            }
-        }
-        
-        private void decodeBuffer(byte[] b) throws IOException {
-            ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            Base64.decodeTo(b, 0, b.length, baos);
-            buffer = baos.toByteArray();
-            bufpos = 0;
-        }
-        
-        private void fillWithContent() throws IOException {
-            int read = 0;
-            ByteArrayOutputStream baos = new ByteArrayOutputStream();
-            while (read  < THRESHOLD) {
-                if (currentLine == null) {
-                    eof = true;
-                    break;
-                }
-                if (currentLine.startsWith("-")) {
-                    state = State.FOOTER;
-                    break;
-                }
-                baos.write(currentLine.getBytes());
-                read += currentLine.length();
-                readLine();
-            }
-            
-            if (read > 0)
-                decodeBuffer(baos.toByteArray());
         }
         
         private void fill() throws IOException {
-            switch (state) {
-                case FOOTER:
-                    matchFooter(); /* FALLTHROUGH */
-                case HEADER:
-                    if (!matchHeader()) {
-                        eof = true;
-                    }
-            }
-            if (eof)
-                return;
+            int total = 0;
+            ByteArrayOutputStream baos = new ByteArrayOutputStream(THRESHOLD);
+            String line = in.readLine();
+            String currentName = null;
             
-            fillWithContent();
+            while (!state.equals(State.DONE) && total < THRESHOLD && line != null) {
+                switch (state) {
+                    case HEADER:
+                        if (line.charAt(0) == '-') {
+                            PemHeaderMatcher matcher = new PemHeaderMatcher(line);
+                            if (matcher.match()) {
+                                state = State.CONTENT;
+                                currentName = matcher.getName();
+                            }
+                        }
+                        line = in.readLine();
+                        break;
+                    case CONTENT:
+                        if (line.charAt(0) == '-') {
+                            state = State.FOOTER;
+                        } else {
+                            total += decodeLine(line, baos);
+                        }
+                        break;
+                    case FOOTER:
+                        if (line.charAt(0) == '-') {
+                           PemFooterMatcher matcher = new PemFooterMatcher(line, currentName);
+                            if (matcher.match()) {
+                                state = State.DONE;
+                            } 
+                        }
+                        line = in.readLine();
+                        break;
+                    default:
+                        break;
+                }
+            }
+            
+            if (line == null && !state.equals(State.DONE)) {
+                switch (state) {
+                    case HEADER:
+                        break; /* means we essentially never read PEM data */
+                    case CONTENT:
+                        throw new MalformedPemException("PEM data ended prematurely");
+                    default:
+                        throw new MalformedPemException("Could not find matching footer");
+                }
+            }
+            
+            eof = true;
+            buffer = baos.toByteArray();
+            bufpos = 0;
+            name = currentName;
         }
         
         private int consumeBytes(byte[] b, int off, int len) {
@@ -371,10 +255,7 @@ public class PemInputStream extends FilterInputStream {
                 return -1;
             int total = 0;
             if (buffer == null) {
-                readLine();
                 fill();
-                if (buffer == null)
-                    throw new MalformedPemException("Invalid PEM format");
             }
             while (total != len && !(bufpos == buffer.length && eof)) {
                 if (bufpos == buffer.length)
@@ -382,6 +263,10 @@ public class PemInputStream extends FilterInputStream {
                 total += consumeBytes(b, off, len);
             }
             return total;
+        }
+
+        public String getName() {
+            return name;
         }
     }
     

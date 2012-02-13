@@ -88,6 +88,8 @@ public class Streams {
         while ((read = in.read(buffer)) != -1) {
             baos.write(buffer, 0, read);
         }
+        if (baos.size() == 0)
+            return null;
         return baos.toByteArray();
     }
 }

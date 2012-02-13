@@ -30,13 +30,19 @@
 package org.jruby.ext.krypt.asn1;
 
 import java.io.ByteArrayInputStream;
+import java.io.IOException;
 import java.io.InputStream;
+import java.util.ArrayList;
+import java.util.List;
 import org.jruby.Ruby;
 import org.jruby.RubyClass;
+import org.jruby.RubyFixnum;
 import org.jruby.RubyModule;
+import org.jruby.RubyNumeric;
 import org.jruby.anno.JRubyMethod;
 import org.jruby.ext.krypt.Errors;
 import org.jruby.ext.krypt.Streams;
+import org.jruby.runtime.Block;
 import org.jruby.runtime.ThreadContext;
 import org.jruby.runtime.builtin.IRubyObject;
 import org.jruby.util.ByteList;
@@ -49,8 +55,33 @@ public class Pem {
     
     private Pem() {}
     
+    private static void yieldToBlock(ThreadContext ctx, IRubyObject current, String jname, int ji, Block block) {
+        IRubyObject name = ctx.getRuntime().newString(jname);
+        IRubyObject i = RubyNumeric.int2fix(ctx.getRuntime(), ji);
+        block.yieldSpecific(ctx, current, name, i);
+    }
+    
+    private static IRubyObject decodeAry(ThreadContext ctx, PemInputStream pem, Block block) throws IOException {
+        Ruby runtime = ctx.getRuntime();
+        List<IRubyObject> ary = new ArrayList<IRubyObject>();
+        byte[] bytes;
+        int i = 1;
+        
+        while ((bytes = Streams.consume(pem)) != null) {
+            IRubyObject current = runtime.newString(new ByteList(bytes, false));
+            if (block.isGiven()) {
+               yieldToBlock(ctx, current, pem.getCurrentName(), i, block);
+            }
+            i++;
+            ary.add(current);
+            pem.continueStream();
+        }
+        
+        return runtime.newArray(ary);
+    }
+            
     @JRubyMethod(meta = true)
-    public static IRubyObject decode(ThreadContext ctx, IRubyObject recv, IRubyObject value) {
+    public static IRubyObject decode(ThreadContext ctx, IRubyObject recv, IRubyObject value, Block block) {
         try {
             Ruby rt = ctx.getRuntime();
             InputStream in;
@@ -60,10 +91,9 @@ public class Pem {
                 in = new ByteArrayInputStream(toPemIfPossible(value).convertToString().getBytes());
             }
             PemInputStream pemin = new PemInputStream(in);
-            byte[] decoded = Streams.consume(pemin);
-            return rt.newString(new ByteList(decoded, false));
+            return decodeAry(ctx, pemin, block);
         } catch(Exception e) {
-            throw Errors.newParseError(ctx.getRuntime(), e.getMessage());
+            throw Errors.newPEMError(ctx.getRuntime(), e.getMessage());
         }
     }
     
