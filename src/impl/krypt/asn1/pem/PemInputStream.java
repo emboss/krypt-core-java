@@ -27,7 +27,7 @@
 * the provisions above, a recipient may use your version of this file under
 * the terms of any one of the CPL, the GPL or the LGPL.
  */
-package org.jruby.ext.krypt.asn1;
+package impl.krypt.asn1.pem;
 
 import java.io.BufferedReader;
 import java.io.ByteArrayOutputStream;

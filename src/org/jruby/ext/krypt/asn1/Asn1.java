@@ -36,11 +36,14 @@ import impl.krypt.asn1.ParsedHeader;
 import impl.krypt.asn1.ParserFactory;
 import impl.krypt.asn1.Tag;
 import impl.krypt.asn1.TagClass;
+import impl.krypt.asn1.parser.CachingInputStream;
+import impl.krypt.asn1.pem.PemInputStream;
 import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
 import java.io.OutputStream;
+import java.io.SequenceInputStream;
 import java.lang.reflect.Constructor;
 import java.util.ArrayList;
 import java.util.List;
@@ -55,6 +58,7 @@ import org.jruby.RubyNumeric;
 import org.jruby.RubyObject;
 import org.jruby.RubySymbol;
 import org.jruby.anno.JRubyMethod;
+import org.jruby.exceptions.RaiseException;
 import org.jruby.ext.krypt.Errors;
 import org.jruby.ext.krypt.Streams;
 import org.jruby.ext.krypt.asn1.Asn1DataClasses.Asn1BitString;
@@ -648,20 +652,55 @@ public class Asn1 {
     }
     
     @JRubyMethod(meta = true)
-    public static IRubyObject decode(ThreadContext ctx, IRubyObject recv, IRubyObject value) {
+    public static IRubyObject decode_der(ThreadContext ctx, IRubyObject recv, IRubyObject value) {
         try {
             Ruby rt = ctx.getRuntime();
-            InputStream in;
-            if (value.respondsTo("read")) {
-                in = Streams.tryWrapAsInputStream(rt, value);
-            } else {
-                in = new ByteArrayInputStream(toDerIfPossible(value).convertToString().getBytes());
-            }
-            ParsedHeader h = PARSER.next(in);
-            return Asn1Data.newAsn1Data(rt, h.getObject());
+            InputStream in = asInputStream(rt, value);
+            return generateAsn1Data(rt, in);
         } catch(Exception e) {
             throw Errors.newParseError(ctx.getRuntime(), e.getMessage());
         }
+    }
+    
+    @JRubyMethod(meta = true)
+    public static IRubyObject decode_pem(ThreadContext ctx, IRubyObject recv, IRubyObject value) {
+        try {
+            Ruby rt = ctx.getRuntime();
+            InputStream in = new PemInputStream(asInputStream(rt, value));
+            return generateAsn1Data(rt, in);
+        } catch(Exception e) {
+            throw Errors.newParseError(ctx.getRuntime(), e.getMessage());
+        }
+    }
+    
+    @JRubyMethod(meta = true)
+    public static IRubyObject decode(ThreadContext ctx, IRubyObject recv, IRubyObject value) {
+        try {
+            Ruby rt = ctx.getRuntime();
+            InputStream in = asInputStream(rt, value);
+            CachingInputStream cache = new CachingInputStream(in);
+            try {
+                return generateAsn1Data(rt, cache);
+            } catch (RaiseException ex) {
+                InputStream prefix = new ByteArrayInputStream(cache.getCachedBytes());
+                InputStream pem = new PemInputStream(new SequenceInputStream(prefix, in));
+                return generateAsn1Data(rt, pem);
+            }
+        } catch(Exception e) {
+            throw Errors.newParseError(ctx.getRuntime(), e.getMessage());
+        }
+    }
+    
+    private static IRubyObject generateAsn1Data(Ruby runtime, InputStream in) {
+        ParsedHeader h = PARSER.next(in);
+        return Asn1Data.newAsn1Data(runtime, h.getObject());
+    }
+    
+    private static InputStream asInputStream(Ruby runtime, IRubyObject value) {
+        if (value.respondsTo("read"))
+            return Streams.tryWrapAsInputStream(runtime, value);
+        else
+            return new ByteArrayInputStream(toDerIfPossible(value).convertToString().getBytes());
     }
     
     public static IRubyObject toDer(IRubyObject obj) {

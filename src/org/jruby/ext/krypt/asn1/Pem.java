@@ -29,6 +29,7 @@
  */
 package org.jruby.ext.krypt.asn1;
 
+import impl.krypt.asn1.pem.PemInputStream;
 import java.io.ByteArrayInputStream;
 import java.io.IOException;
 import java.io.InputStream;
