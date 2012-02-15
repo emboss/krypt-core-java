@@ -97,7 +97,7 @@ public class PemInputStream extends FilterInputStream {
         private String name;
         
         public PemLineMatcher(String line, final String beginOrEnd) {
-            this.pattern = Pattern.compile("^-----" + beginOrEnd + " (\\w(\\w|\\s)+)-----$");
+            this.pattern = Pattern.compile("^-----" + beginOrEnd + " (\\w(\\w|\\s)*)-----$");
             this.line = line;
         }
         
@@ -134,7 +134,7 @@ public class PemInputStream extends FilterInputStream {
         @Override
         public boolean match() throws IOException {
             boolean match = super.match();
-            if (match && getName().equals(name))
+            if (match && name.equals(getName()))
                 return true;
             else
                 return false;
@@ -188,16 +188,19 @@ public class PemInputStream extends FilterInputStream {
             int total = 0;
             ByteArrayOutputStream baos = new ByteArrayOutputStream(THRESHOLD);
             String line = in.readLine();
-            String currentName = null;
             
             while (!state.equals(State.DONE) && total < THRESHOLD && line != null) {
+                if (line.equals("")) {
+                    line = in.readLine();
+                    continue;
+                }
                 switch (state) {
                     case HEADER:
                         if (line.charAt(0) == '-') {
                             PemHeaderMatcher matcher = new PemHeaderMatcher(line);
                             if (matcher.match()) {
                                 state = State.CONTENT;
-                                currentName = matcher.getName();
+                                name = matcher.getName();
                             }
                         }
                         line = in.readLine();
@@ -207,21 +210,30 @@ public class PemInputStream extends FilterInputStream {
                             state = State.FOOTER;
                         } else {
                             total += decodeLine(line, baos);
+                            if (total < THRESHOLD)
+                                line = in.readLine();
                         }
                         break;
                     case FOOTER:
                         if (line.charAt(0) == '-') {
-                           PemFooterMatcher matcher = new PemFooterMatcher(line, currentName);
+                           PemFooterMatcher matcher = new PemFooterMatcher(line, name);
                             if (matcher.match()) {
                                 state = State.DONE;
-                            } 
+                            }
+                            else {
+                                line = in.readLine();
+                            }
+                        } else {
+                            line = in.readLine();
                         }
-                        line = in.readLine();
                         break;
                     default:
                         break;
                 }
             }
+            
+            if (state.equals(State.DONE) || line == null)
+                eof = true;
             
             if (line == null && !state.equals(State.DONE)) {
                 switch (state) {
@@ -234,10 +246,8 @@ public class PemInputStream extends FilterInputStream {
                 }
             }
             
-            eof = true;
             buffer = baos.toByteArray();
             bufpos = 0;
-            name = currentName;
         }
         
         private int consumeBytes(byte[] b, int off, int len) {
@@ -251,8 +261,6 @@ public class PemInputStream extends FilterInputStream {
         }
         
         public int read(byte[] b, int off, int len) throws IOException {
-            if (eof)
-                return -1;
             int total = 0;
             if (buffer == null) {
                 fill();
@@ -260,8 +268,10 @@ public class PemInputStream extends FilterInputStream {
             while (total != len && !(bufpos == buffer.length && eof)) {
                 if (bufpos == buffer.length)
                     fill();
-                total += consumeBytes(b, off, len);
+                total += consumeBytes(b, off + total, len - total);
             }
+            if (total == 0 && eof)
+                return -1;
             return total;
         }
 

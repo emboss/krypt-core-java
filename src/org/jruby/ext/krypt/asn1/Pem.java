@@ -37,7 +37,6 @@ import java.util.ArrayList;
 import java.util.List;
 import org.jruby.Ruby;
 import org.jruby.RubyClass;
-import org.jruby.RubyFixnum;
 import org.jruby.RubyModule;
 import org.jruby.RubyNumeric;
 import org.jruby.anno.JRubyMethod;
