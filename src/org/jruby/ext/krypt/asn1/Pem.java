@@ -65,7 +65,7 @@ public class Pem {
         Ruby runtime = ctx.getRuntime();
         List<IRubyObject> ary = new ArrayList<IRubyObject>();
         byte[] bytes;
-        int i = 1;
+        int i = 0;
         
         while ((bytes = Streams.consume(pem)) != null) {
             IRubyObject current = runtime.newString(new ByteList(bytes, false));

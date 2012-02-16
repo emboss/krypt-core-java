@@ -680,11 +680,12 @@ public class Asn1 {
             InputStream in = asInputStream(rt, value);
             CachingInputStream cache = new CachingInputStream(in);
             try {
-                return generateAsn1Data(rt, cache);
+                InputStream pem = new PemInputStream(cache);
+                return generateAsn1Data(rt, pem);
             } catch (RaiseException ex) {
                 InputStream prefix = new ByteArrayInputStream(cache.getCachedBytes());
-                InputStream pem = new PemInputStream(new SequenceInputStream(prefix, in));
-                return generateAsn1Data(rt, pem);
+                InputStream retry = new SequenceInputStream(prefix, in);
+                return generateAsn1Data(rt, retry);
             }
         } catch(Exception e) {
             throw Errors.newParseError(ctx.getRuntime(), e.getMessage());
@@ -693,6 +694,8 @@ public class Asn1 {
     
     private static IRubyObject generateAsn1Data(Ruby runtime, InputStream in) {
         ParsedHeader h = PARSER.next(in);
+        if (h == null)
+            throw Errors.newParseError(runtime, "Could not parse data");
         return Asn1Data.newAsn1Data(runtime, h.getObject());
     }
     
