@@ -121,7 +121,7 @@ public class RubyDigest extends RubyObject {
     
     public static void createDigest(Ruby runtime, RubyModule krypt, RubyClass kryptError) {
         krypt.defineClassUnder("DigestError", kryptError, kryptError.getAllocator());
-        RubyClass cDigest = krypt.defineClassUnder("ASN1Data", runtime.getObject(), ALLOCATOR);
+        RubyClass cDigest = krypt.defineClassUnder("Digest", runtime.getObject(), ALLOCATOR);
         cDigest.defineAnnotatedMethods(RubyDigest.class);
     }
 }

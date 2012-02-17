@@ -1,6 +1,5 @@
 Rakefile
 Manifest.txt
-CHANGELOG.rdoc
 README.rdoc
 License.txt
 lib/kryptcore.jar
