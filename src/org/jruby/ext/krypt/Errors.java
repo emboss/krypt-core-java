@@ -57,6 +57,10 @@ public class Errors {
         return newError(rt, "Krypt::PEM::PEMError", message);
     }
     
+    public static RaiseException newDigestError(Ruby rt, String message) {
+        return newError(rt, "Krypt::DigestError", message);
+    }
+    
     public static RaiseException newError(Ruby rt, String path, String message) {
         return new RaiseException(rt, getClassFromPath(rt, path), message, true);
     }

@@ -27,27 +27,33 @@
 * the provisions above, a recipient may use your version of this file under
 * the terms of any one of the CPL, the GPL or the LGPL.
  */
-package org.jruby.ext.krypt;
+package org.jruby.ext.krypt.provider;
 
-import org.jruby.Ruby;
-import org.jruby.RubyClass;
-import org.jruby.RubyModule;
-import org.jruby.ext.krypt.asn1.RubyAsn1;
-import org.jruby.ext.krypt.asn1.RubyPem;
-import org.jruby.ext.krypt.digest.RubyDigest;
+import java.security.MessageDigest;
 
 /**
  * 
  * @author <a href="mailto:Martin.Bosslet@googlemail.com">Martin Bosslet</a>
  */
-public class KryptCoreService {
+public class ProviderRegistry {
     
-    public static void create(Ruby runtime) {
-        RubyModule krypt = runtime.getOrCreateModule("Krypt");
-        RubyClass standardError = runtime.getClass("StandardError");
-        RubyClass kryptError = krypt.defineClassUnder("KryptError", standardError, standardError.getAllocator());
-        RubyAsn1.createAsn1(runtime, krypt, kryptError);
-        RubyPem.createPem(runtime, krypt, kryptError);
-        RubyDigest.createDigest(runtime, krypt, kryptError);
-    }    
+    private ProviderRegistry() {}
+    
+    private static final ProviderRegistry INSTANCE = new ProviderRegistry();
+    
+    public static ProviderRegistry getInstance() {
+        return INSTANCE;
+    }
+    
+    private KryptProvider defaultProvider;
+    
+    public synchronized void registerDefault(KryptProvider provider) {
+        if (defaultProvider != null)
+            throw new RuntimeException("Default provider may only be set once");
+        this.defaultProvider = provider;
+    }
+    
+    public synchronized KryptProvider getDefaultProvider() {
+        return defaultProvider;
+    } 
 }

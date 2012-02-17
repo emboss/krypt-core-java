@@ -96,9 +96,9 @@ import org.jruby.util.ByteList;
  * 
  * @author <a href="mailto:Martin.Bosslet@googlemail.com">Martin Bosslet</a>
  */
-public class Asn1 {
+public class RubyAsn1 {
     
-    private Asn1() {}
+    private RubyAsn1() {}
     
     static final impl.krypt.asn1.Parser PARSER = new ParserFactory().newHeaderParser();
     
@@ -314,7 +314,7 @@ public class Asn1 {
             
             InstanceVariables ivs = getInstanceVariables();
             ivs.setInstanceVariable("tag", runtime.newFixnum(itag));
-            ivs.setInstanceVariable("tag_class", Header.tagClassFor(runtime, tc));
+            ivs.setInstanceVariable("tag_class", RubyHeader.tagClassFor(runtime, tc));
             ivs.setInstanceVariable("infinite_length", runtime.newBoolean(length.isInfiniteLength()));
         }
         
@@ -574,7 +574,7 @@ public class Asn1 {
             List<IRubyObject> list = new ArrayList<IRubyObject>();
             ParsedHeader h;
             
-            while ((h = Asn1.PARSER.next(in)) != null) {
+            while ((h = RubyAsn1.PARSER.next(in)) != null) {
                 list.add(Asn1Data.newAsn1Data(rt, h.getObject()));
             }
             
@@ -755,7 +755,7 @@ public class Asn1 {
         mASN1.defineClassUnder("ParseError", asn1Error, asn1Error.getAllocator());
         mASN1.defineClassUnder("SerializeError", asn1Error, asn1Error.getAllocator());
 
-        mASN1.defineAnnotatedMethods(Asn1.class);
+        mASN1.defineAnnotatedMethods(RubyAsn1.class);
         
         cASN1Data = mASN1.defineClassUnder("ASN1Data", runtime.getObject(), Asn1Data.ALLOCATOR);
         cASN1Data.defineAnnotatedMethods(Asn1Data.class);
@@ -865,7 +865,7 @@ public class Asn1 {
         }
         mASN1.setConstant("UNIVERSAL_TAG_NAME",runtime.newArray(ary));
         
-        Parser.createParser(runtime, mASN1);
-        Header.createHeader(runtime, mASN1);
+        RubyParser.createParser(runtime, mASN1);
+        RubyHeader.createHeader(runtime, mASN1);
     }    
 }

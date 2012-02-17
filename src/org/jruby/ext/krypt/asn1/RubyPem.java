@@ -51,9 +51,9 @@ import org.jruby.util.ByteList;
  * 
  * @author <a href="mailto:Martin.Bosslet@googlemail.com">Martin Bosslet</a>
  */
-public class Pem {
+public class RubyPem {
     
-    private Pem() {}
+    private RubyPem() {}
     
     private static void yieldToBlock(ThreadContext ctx, IRubyObject current, String jname, int ji, Block block) {
         IRubyObject name = ctx.getRuntime().newString(jname);
@@ -112,7 +112,7 @@ public class Pem {
     public static void createPem(Ruby runtime, RubyModule krypt, RubyClass kryptError) {
         RubyModule mPEM = runtime.defineModuleUnder("PEM", krypt);
         mPEM.defineClassUnder("PEMError", kryptError, kryptError.getAllocator());
-        mPEM.defineAnnotatedMethods(Pem.class);
+        mPEM.defineAnnotatedMethods(RubyPem.class);
     }
     
 }

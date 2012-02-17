@@ -58,11 +58,11 @@ import org.jruby.util.ByteList;
  * 
  * @author <a href="mailto:Martin.Bosslet@googlemail.com">Martin Bosslet</a>
  */
-public class Header extends RubyObject {
+public class RubyHeader extends RubyObject {
     
     public static void createHeader(Ruby runtime, RubyModule mASN1) {
         mASN1.defineClassUnder("Header", runtime.getObject(), ObjectAllocator.NOT_ALLOCATABLE_ALLOCATOR)
-             .defineAnnotatedMethods(Header.class);
+             .defineAnnotatedMethods(RubyHeader.class);
     }
     
     private final ParsedHeader h;
@@ -76,7 +76,7 @@ public class Header extends RubyObject {
     
     private IRubyObject cachedValue;
     
-    public Header(Ruby runtime, RubyClass type, impl.krypt.asn1.ParsedHeader h) {
+    public RubyHeader(Ruby runtime, RubyClass type, impl.krypt.asn1.ParsedHeader h) {
         super(runtime, type);
         if (h == null) throw new NullPointerException();
     

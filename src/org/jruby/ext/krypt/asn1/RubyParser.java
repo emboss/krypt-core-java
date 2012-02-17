@@ -48,23 +48,23 @@ import org.jruby.runtime.builtin.IRubyObject;
  * 
  * @author <a href="mailto:Martin.Bosslet@googlemail.com">Martin Bosslet</a>
  */
-public class Parser extends RubyObject {
+public class RubyParser extends RubyObject {
     
     private static ObjectAllocator PARSER_ALLOCATOR = new ObjectAllocator() {
         @Override
         public IRubyObject allocate(Ruby runtime, RubyClass type) {
-            return new Parser(runtime, type);
+            return new RubyParser(runtime, type);
         }
     };
     
     public static void createParser(Ruby runtime, RubyModule mASN1) {
         mASN1.defineClassUnder("Parser", runtime.getObject(), PARSER_ALLOCATOR)
-             .defineAnnotatedMethods(Parser.class);
+             .defineAnnotatedMethods(RubyParser.class);
     }
     
     private final impl.krypt.asn1.Parser parser;
     
-    public Parser(Ruby runtime, RubyClass type) {
+    public RubyParser(Ruby runtime, RubyClass type) {
         super(runtime, type);
         
         this.parser = new ParserFactory().newHeaderParser();
@@ -94,7 +94,7 @@ public class Parser extends RubyObject {
                 return runtime.getNil();
             }
             else {
-                return new Header(runtime, headerClass, h);
+                return new RubyHeader(runtime, headerClass, h);
             }
         } 
         catch (ParseException ex) {

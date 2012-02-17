@@ -36,9 +36,9 @@ import org.jruby.RubyClass;
 import org.jruby.RubyFixnum;
 import org.jruby.anno.JRubyMethod;
 import org.jruby.ext.krypt.Errors;
-import org.jruby.ext.krypt.asn1.Asn1.Asn1Constructive;
-import org.jruby.ext.krypt.asn1.Asn1.Asn1Data;
-import org.jruby.ext.krypt.asn1.Asn1.Asn1Primitive;
+import org.jruby.ext.krypt.asn1.RubyAsn1.Asn1Constructive;
+import org.jruby.ext.krypt.asn1.RubyAsn1.Asn1Data;
+import org.jruby.ext.krypt.asn1.RubyAsn1.Asn1Primitive;
 import org.jruby.runtime.ObjectAllocator;
 import org.jruby.runtime.ThreadContext;
 import org.jruby.runtime.builtin.IRubyObject;
@@ -100,7 +100,7 @@ public class Asn1DataClasses {
         tag = tac.tag;
         tagClass = tac.tagClass;
         
-        Asn1.defaultInitialize(runtime,
+        RubyAsn1.defaultInitialize(runtime,
                                data,
                                value, 
                                tag, 
@@ -108,7 +108,7 @@ public class Asn1DataClasses {
         
         /* override default behavior to support Primitives with tag classes
          * other than UNIVERSAL */
-        data.setCodec(Asn1.codecFor(defaultTag, TagClass.UNIVERSAL));
+        data.setCodec(RubyAsn1.codecFor(defaultTag, TagClass.UNIVERSAL));
         return data;
     }
     
@@ -139,7 +139,7 @@ public class Asn1DataClasses {
                     throw runtime.newArgumentError("Value must be nil for END_OF_CONTENTS");
             }
             
-            Asn1.defaultInitialize(runtime,
+            RubyAsn1.defaultInitialize(runtime,
                                    this,
                                    runtime.getNil(), 
                                    runtime.newFixnum(Asn1Tags.END_OF_CONTENTS), 
@@ -277,7 +277,7 @@ public class Asn1DataClasses {
         public IRubyObject initialize(ThreadContext ctx, IRubyObject[] args) {
             Ruby runtime = ctx.getRuntime();
             if (args.length == 0) {
-                Asn1.defaultInitialize(runtime,
+                RubyAsn1.defaultInitialize(runtime,
                                        this, 
                                        runtime.getNil(), 
                                        runtime.newFixnum(Asn1Tags.NULL), 
