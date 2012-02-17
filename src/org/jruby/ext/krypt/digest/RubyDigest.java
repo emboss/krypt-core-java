@@ -112,7 +112,7 @@ public class RubyDigest extends RubyObject {
     private IRubyObject digestData(Ruby runtime, IRubyObject rbdata) {
         try {
             byte[] data = rbdata.asString().getBytes();
-            byte[] result = digest.digest(data, 0, data.length);
+            byte[] result = digest.digest(data);
             return runtime.newString(new ByteList(result, false));
         } catch (Exception ex) {
             throw Errors.newDigestError(runtime, "Error while computing digest: " + ex.getMessage());

@@ -38,7 +38,7 @@ public interface Digest {
     public void update(byte[] data, int off, int len);
     
     public byte[] digest();
-    public byte[] digest(byte[] data, int off, int len);
+    public byte[] digest(byte[] data);
     
 }
 
