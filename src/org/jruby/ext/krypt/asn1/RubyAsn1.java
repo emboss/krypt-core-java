@@ -687,15 +687,17 @@ public class RubyAsn1 {
                 InputStream retry = new SequenceInputStream(prefix, in);
                 return generateAsn1Data(rt, retry);
             }
+        } catch (RaiseException ex) {
+            throw ex;
         } catch(Exception e) {
-            throw Errors.newParseError(ctx.getRuntime(), e.getMessage());
+            throw Errors.newASN1Error(ctx.getRuntime(), e.getMessage());
         }
     }
     
     private static IRubyObject generateAsn1Data(Ruby runtime, InputStream in) {
         ParsedHeader h = PARSER.next(in);
         if (h == null)
-            throw Errors.newParseError(runtime, "Could not parse data");
+            throw Errors.newASN1Error(runtime, "Could not parse data");
         return Asn1Data.newAsn1Data(runtime, h.getObject());
     }
     
