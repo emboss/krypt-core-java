@@ -51,7 +51,6 @@ public class ProviderRegistry {
         if (defaultProvider != null)
             throw new RuntimeException("Default provider may only be set once");
         this.defaultProvider = provider;
-        System.out.println("Provider loaded");
     }
     
     public synchronized KryptProvider getDefaultProvider() {

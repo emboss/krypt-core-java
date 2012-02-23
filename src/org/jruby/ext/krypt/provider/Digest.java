@@ -36,9 +36,12 @@ package org.jruby.ext.krypt.provider;
 public interface Digest {
     
     public void update(byte[] data, int off, int len);
-    
     public byte[] digest();
     public byte[] digest(byte[] data);
+    public void reset();
+    public String getName();
+    public int getDigestLength();
+    public int getBlockLength();
     
 }
 

@@ -58,7 +58,7 @@ public class Errors {
     }
     
     public static RaiseException newDigestError(Ruby rt, String message) {
-        return newError(rt, "Krypt::DigestError", message);
+        return newError(rt, "Krypt::Digest::DigestError", message);
     }
     
     public static RaiseException newError(Ruby rt, String path, String message) {

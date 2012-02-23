@@ -32,7 +32,9 @@ package org.jruby.ext.krypt.digest;
 import java.security.NoSuchAlgorithmException;
 import org.jruby.Ruby;
 import org.jruby.RubyClass;
+import org.jruby.RubyFixnum;
 import org.jruby.RubyModule;
+import org.jruby.RubyNumeric;
 import org.jruby.RubyObject;
 import org.jruby.anno.JRubyMethod;
 import org.jruby.ext.krypt.Errors;
@@ -60,6 +62,11 @@ public class RubyDigest extends RubyObject {
     protected RubyDigest(Ruby runtime, RubyClass type) {
         super(runtime, type);
     }
+    
+    protected RubyDigest(Ruby runtime, RubyClass type, Digest digest) {
+        this(runtime, type);
+        this.digest = digest;
+    }
         
     private Digest digest;
     
@@ -77,6 +84,12 @@ public class RubyDigest extends RubyObject {
                 throw Errors.newDigestError(runtime, "Unknown digest algorithm: " + type);
             }
         }
+        return this;
+    }
+    
+    @JRubyMethod
+    public IRubyObject reset(ThreadContext ctx) {
+        this.digest.reset();
         return this;
     }
     
@@ -100,6 +113,21 @@ public class RubyDigest extends RubyObject {
             return digestData(runtime, args[0]);
     }
     
+    @JRubyMethod
+    public IRubyObject name(ThreadContext ctx) {
+        return ctx.getRuntime().newString(this.digest.getName());
+    }
+    
+    @JRubyMethod
+    public IRubyObject digest_length(ThreadContext ctx) {
+        return RubyNumeric.int2fix(ctx.getRuntime(), this.digest.getDigestLength());
+    }
+    
+    @JRubyMethod
+    public IRubyObject block_length(ThreadContext ctx) {
+        return RubyNumeric.int2fix(ctx.getRuntime(), this.digest.getBlockLength());
+    }
+    
     private IRubyObject digestFinalize(Ruby runtime) {
         try {
             byte[] result = digest.digest();
@@ -120,8 +148,170 @@ public class RubyDigest extends RubyObject {
     }
     
     public static void createDigest(Ruby runtime, RubyModule krypt, RubyClass kryptError) {
-        krypt.defineClassUnder("DigestError", kryptError, kryptError.getAllocator());
         RubyClass cDigest = krypt.defineClassUnder("Digest", runtime.getObject(), ALLOCATOR);
         cDigest.defineAnnotatedMethods(RubyDigest.class);
+        cDigest.defineClassUnder("DigestError", kryptError, kryptError.getAllocator());
+        RubyClass cSha1 = cDigest.defineClassUnder("SHA1", cDigest, Sha1.ALLOCATOR);
+        cSha1.defineAnnotatedMethods(Sha1.class);
+        RubyClass cSha224 = cDigest.defineClassUnder("SHA224", cDigest, Sha224.ALLOCATOR);
+        cSha224.defineAnnotatedMethods(Sha224.class);
+        RubyClass cSha256 = cDigest.defineClassUnder("SHA256", cDigest, Sha256.ALLOCATOR);
+        cSha256.defineAnnotatedMethods(Sha256.class);
+        RubyClass cSha384 = cDigest.defineClassUnder("SHA384", cDigest, Sha384.ALLOCATOR);
+        cSha384.defineAnnotatedMethods(Sha384.class);
+        RubyClass cSha512 = cDigest.defineClassUnder("SHA512", cDigest, Sha512.ALLOCATOR);
+        cSha512.defineAnnotatedMethods(Sha512.class);
+        RubyClass cRipemd160 = cDigest.defineClassUnder("RIPEMD160", cDigest, Ripemd160.ALLOCATOR);
+        cRipemd160.defineAnnotatedMethods(Ripemd160.class);
+        RubyClass cMD5 = cDigest.defineClassUnder("MD5", cDigest, MD5.ALLOCATOR);
+        cMD5.defineAnnotatedMethods(MD5.class);
+    }
+    
+    private static Digest newDigest(Ruby runtime, String algorithm) {
+        try {
+            return ProviderRegistry.getInstance().getDefaultProvider().newDigestByName(algorithm);
+        } catch (NoSuchAlgorithmException ex) {
+            throw Errors.newDigestError(runtime, ex.getMessage());
+        }
+    }
+    
+    public static class Sha1 extends RubyDigest {
+
+        static ObjectAllocator ALLOCATOR = new ObjectAllocator() {
+            @Override
+            public IRubyObject allocate(Ruby runtime, RubyClass type) {
+                return new Sha1(runtime, type);
+            }
+        };
+        
+        public Sha1(Ruby runtime, RubyClass type) {
+            super(runtime, type, newDigest(runtime, "SHA1"));
+        }
+        
+        @JRubyMethod
+        @Override
+        public IRubyObject initialize(ThreadContext ctx) {
+            return this;
+        }
+    }
+    
+    public static class Sha224 extends RubyDigest {
+
+        static ObjectAllocator ALLOCATOR = new ObjectAllocator() {
+            @Override
+            public IRubyObject allocate(Ruby runtime, RubyClass type) {
+                return new Sha224(runtime, type);
+            }
+        };
+        
+        public Sha224(Ruby runtime, RubyClass type) {
+            super(runtime, type, newDigest(runtime, "SHA224"));
+        }
+        
+        @JRubyMethod
+        @Override
+        public IRubyObject initialize(ThreadContext ctx) {
+            return this;
+        }
+    }
+    
+    public static class Sha256 extends RubyDigest {
+
+        static ObjectAllocator ALLOCATOR = new ObjectAllocator() {
+            @Override
+            public IRubyObject allocate(Ruby runtime, RubyClass type) {
+                return new Sha256(runtime, type);
+            }
+        };
+        
+        public Sha256(Ruby runtime, RubyClass type) {
+            super(runtime, type, newDigest(runtime, "SHA256"));
+        }
+        
+        @JRubyMethod
+        @Override
+        public IRubyObject initialize(ThreadContext ctx) {
+            return this;
+        }
+    }
+    
+    public static class Sha384 extends RubyDigest {
+
+        static ObjectAllocator ALLOCATOR = new ObjectAllocator() {
+            @Override
+            public IRubyObject allocate(Ruby runtime, RubyClass type) {
+                return new Sha384(runtime, type);
+            }
+        };
+        
+        public Sha384(Ruby runtime, RubyClass type) {
+            super(runtime, type, newDigest(runtime, "SHA384"));
+        }
+        
+        @JRubyMethod
+        @Override
+        public IRubyObject initialize(ThreadContext ctx) {
+            return this;
+        }
+    }
+    
+    public static class Sha512 extends RubyDigest {
+
+        static ObjectAllocator ALLOCATOR = new ObjectAllocator() {
+            @Override
+            public IRubyObject allocate(Ruby runtime, RubyClass type) {
+                return new Sha512(runtime, type);
+            }
+        };
+        
+        public Sha512(Ruby runtime, RubyClass type) {
+            super(runtime, type, newDigest(runtime, "SHA512"));
+        }
+        
+        @JRubyMethod
+        @Override
+        public IRubyObject initialize(ThreadContext ctx) {
+            return this;
+        }
+    }
+    
+    public static class Ripemd160 extends RubyDigest {
+
+        static ObjectAllocator ALLOCATOR = new ObjectAllocator() {
+            @Override
+            public IRubyObject allocate(Ruby runtime, RubyClass type) {
+                return new Ripemd160(runtime, type);
+            }
+        };
+        
+        public Ripemd160(Ruby runtime, RubyClass type) {
+            super(runtime, type, newDigest(runtime, "RIPEMD160"));
+        }
+        
+        @JRubyMethod
+        @Override
+        public IRubyObject initialize(ThreadContext ctx) {
+            return this;
+        }
+    }
+    
+    public static class MD5 extends RubyDigest {
+
+        static ObjectAllocator ALLOCATOR = new ObjectAllocator() {
+            @Override
+            public IRubyObject allocate(Ruby runtime, RubyClass type) {
+                return new MD5(runtime, type);
+            }
+        };
+        
+        public MD5(Ruby runtime, RubyClass type) {
+            super(runtime, type, newDigest(runtime, "MD5"));
+        }
+        
+        @JRubyMethod
+        @Override
+        public IRubyObject initialize(ThreadContext ctx) {
+            return this;
+        }
     }
 }
