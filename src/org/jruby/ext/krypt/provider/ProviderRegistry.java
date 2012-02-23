@@ -29,8 +29,6 @@
  */
 package org.jruby.ext.krypt.provider;
 
-import java.security.MessageDigest;
-
 /**
  * 
  * @author <a href="mailto:Martin.Bosslet@googlemail.com">Martin Bosslet</a>
