@@ -83,6 +83,8 @@ public class RubyDigest extends RubyObject {
             } catch (NoSuchAlgorithmException ex2) {
                 throw Errors.newDigestError(runtime, "Unknown digest algorithm: " + type);
             }
+        } catch (Exception ex) {
+            throw Errors.newDigestError(runtime, ex.getMessage());
         }
         return this;
     }
@@ -171,6 +173,8 @@ public class RubyDigest extends RubyObject {
         try {
             return ProviderRegistry.getInstance().getDefaultProvider().newDigestByName(algorithm);
         } catch (NoSuchAlgorithmException ex) {
+            throw Errors.newDigestError(runtime, "Unknown digest algorithm: " + algorithm);
+        } catch (Exception ex) {
             throw Errors.newDigestError(runtime, ex.getMessage());
         }
     }
