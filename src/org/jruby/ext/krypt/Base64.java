@@ -40,6 +40,8 @@ import java.io.UnsupportedEncodingException;
  */
 public class Base64 {
     
+    private Base64() {}
+    
     private static final char B64TABLE[] = "ABCDEFGHIJKLMNOPQRSTUVWXYZabcdefghijklmnopqrstuvwxyz0123456789+/".toCharArray();
     private static final byte B64TABLEINV[] = {
     -1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,-1,

@@ -37,6 +37,7 @@ import org.jruby.RubyNumeric;
 import org.jruby.RubyObject;
 import org.jruby.anno.JRubyMethod;
 import org.jruby.ext.krypt.Errors;
+import org.jruby.ext.krypt.Hex;
 import org.jruby.ext.krypt.provider.Digest;
 import org.jruby.ext.krypt.provider.KryptProvider;
 import org.jruby.ext.krypt.provider.ProviderRegistry;
@@ -112,6 +113,12 @@ public class RubyDigest extends RubyObject {
             return digestFinalize(runtime);
         else
             return digestData(runtime, args[0]);
+    }
+    
+    @JRubyMethod(optional=1)
+    public IRubyObject hexdigest(ThreadContext ctx, IRubyObject[] args) {
+        IRubyObject result = digest(ctx, args);
+        return ctx.getRuntime().newString(Hex.encodeAsString(result.asString().getBytes()));
     }
     
     @JRubyMethod
