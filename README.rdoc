@@ -1,4 +1,4 @@
-== krypt-core-jruby
+== krypt-core-java
 
 The Java implementation of the krypt-core API 
 used by JRuby.
