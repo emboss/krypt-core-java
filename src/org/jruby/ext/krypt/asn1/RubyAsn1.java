@@ -461,7 +461,7 @@ public class RubyAsn1 {
         
         protected final void decodeValue(ThreadContext ctx) {
             if (object.getHeader().getTag().isConstructed())
-                this.value = Asn1Constructive.decodeValue(ctx, object.getValue());
+                this.value = Asn1Constructive.decodeValue(ctx, object.getValue(), object.getHeader().getLength().isInfiniteLength());
             else
                 this.value = Asn1Primitive.decodeValue(codec, new DecodeContext(this, ctx.getRuntime(), object.getValue()));
         }
@@ -570,7 +570,7 @@ public class RubyAsn1 {
             });
         }
         
-        static IRubyObject decodeValue(ThreadContext ctx, byte[] value) {
+        static IRubyObject decodeValue(ThreadContext ctx, byte[] value, boolean infinite) {
             Ruby rt = ctx.getRuntime();
             if (value == null)
                 return rt.newArray();
@@ -580,6 +580,11 @@ public class RubyAsn1 {
             
             while ((h = RubyAsn1.PARSER.next(in)) != null) {
                 list.add(Asn1Data.newAsn1Data(rt, h.getObject()));
+            }
+            
+            if (infinite) {
+                /* must be EOC, other ChunkedInputStream would have thrown EOF */
+                list.remove(list.size() - 1);
             }
             
             return rt.newArray(list);
