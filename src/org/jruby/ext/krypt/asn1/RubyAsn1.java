@@ -430,10 +430,14 @@ public class RubyAsn1 {
         
         @JRubyMethod
         public synchronized IRubyObject encode_to(ThreadContext ctx, IRubyObject io) {
-            Ruby rt = ctx.getRuntime();
-            OutputStream out = Streams.tryWrapAsOuputStream(rt, io);
-            encodeToInternal(ctx, out);
-            return this;
+            try {
+                Ruby rt = ctx.getRuntime();
+                OutputStream out = Streams.tryWrapAsOuputStream(rt, io);
+                encodeToInternal(ctx, out);
+                return this;
+            } catch (Exception e) {
+                throw Errors.newASN1Error(ctx.getRuntime(), e.getMessage());
+            }
         }
         
         @JRubyMethod
@@ -687,8 +691,6 @@ public class RubyAsn1 {
                 InputStream retry = new SequenceInputStream(prefix, in);
                 return generateAsn1Data(rt, retry);
             }
-        } catch (RaiseException ex) {
-            throw ex;
         } catch(Exception e) {
             throw Errors.newASN1Error(ctx.getRuntime(), e.getMessage());
         }
