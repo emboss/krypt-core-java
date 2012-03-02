@@ -51,7 +51,6 @@ import org.jruby.ext.krypt.asn1.RubyAsn1.DecodeContext;
 import org.jruby.ext.krypt.asn1.RubyAsn1.EncodeContext;
 import org.jruby.ext.krypt.asn1.RubyAsn1.ValidateContext;
 import org.jruby.runtime.builtin.IRubyObject;
-import org.jruby.runtime.marshal.MarshalStream;
 import org.jruby.util.ByteList;
 
 /**
