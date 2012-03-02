@@ -146,6 +146,12 @@ public class Asn1DataClasses {
                                    runtime.newSymbol(TagClass.UNIVERSAL.name()));
             return this;
         }
+        
+        public static Asn1EndOfContents newInstance(ThreadContext ctx, RubyClass type) {
+            Asn1EndOfContents eoc = new Asn1EndOfContents(ctx.getRuntime(), type);
+            eoc.initialize(ctx, NULL_ARRAY);
+            return eoc;
+        }
     }
     
     public static class Asn1Boolean extends Asn1Primitive {

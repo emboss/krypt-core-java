@@ -324,7 +324,7 @@ public class RubyAsn1 {
             checkTagAndClass(runtime, tag, tag_class);
             int itag = RubyNumeric.fix2int(tag);
             TagClass tc = tagClassOf(runtime, tag_class);
-            boolean isConstructed = value instanceof RubyArray;
+            boolean isConstructed = value.respondsTo("each");
 
             initInternal(runtime,
                          this, 
@@ -551,8 +551,8 @@ public class RubyAsn1 {
         @Override
         @JRubyMethod(name={"value="})
         public IRubyObject set_value(ThreadContext ctx, IRubyObject value) {
-            if (!(value instanceof RubyArray))
-                throw ctx.getRuntime().newArgumentError(("Value for Asn1Constructive must be an array"));
+            if (!value.respondsTo("each"))
+                throw ctx.getRuntime().newArgumentError(("Value for Asn1Constructive must respond to each"));
             return super.set_value(ctx, value);
         }
         
@@ -611,33 +611,56 @@ public class RubyAsn1 {
             if (!l.hasBeenComputed() && !l.isInfiniteLength()) {
                 /* compute the encoding of the sub elements and update length in header */
                 ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                encodeSubElements(ctx, ary, baos);
+                encodeSubElements(ctx, ary, l.isInfiniteLength(), baos);
                 byte[] subEncoding = baos.toByteArray();
                 l.setLength(subEncoding.length);
                 h.encodeTo(out);
                 out.write(subEncoding);
             } else {
                 object.getHeader().encodeTo(out);
-                encodeSubElements(ctx, ary, out);
+                encodeSubElements(ctx, ary, l.isInfiniteLength(), out);
             }
         }
         
-        private static void encodeSubElements(ThreadContext ctx, IRubyObject enumerable, final OutputStream out) {
+        private static void encodeSubElements(ThreadContext ctx, 
+                                              IRubyObject enumerable, 
+                                              boolean infinite, 
+                                              final OutputStream out) {
             if (enumerable instanceof RubyArray)
-                encodeArray((RubyArray)enumerable, ctx, out);
+                encodeArray((RubyArray)enumerable, infinite, ctx, out);
             else
-                encodeEnumerable(enumerable, ctx, out);
+                encodeEnumerable(enumerable, infinite, ctx, out);
         }
         
-        private static void encodeArray(RubyArray ary, ThreadContext ctx, OutputStream out) {
-           for (IRubyObject value : ary.toJavaArray()) {
-                if (!(value instanceof Asn1Data))
-                    throw Errors.newError(ctx.getRuntime(), "ArgumentError", "Value is not an ASN1Data");
-                ((Asn1Data)value).encodeToInternal(ctx, out);
-            } 
+        private static void encodeArray(RubyArray ary,
+                                        boolean infinite,
+                                        ThreadContext ctx,
+                                        OutputStream out) {
+            IRubyObject[] values = ary.toJavaArray();
+            for (IRubyObject value : values) {
+                encodeSingleSubElement(ctx, value, out);
+            }
+            
+            if (infinite) { /* add closing EOC if it was missing */
+                Asn1Data last = (Asn1Data) values[values.length - 1];
+                Tag tag = last.getObject().getHeader().getTag();
+                if (tag.getTag() != Asn1Tags.END_OF_CONTENTS  || !tag.getTagClass().equals(TagClass.UNIVERSAL)) {
+                    encodeSingleSubElement(ctx, Asn1EndOfContents.newInstance(ctx, cASN1EndOfContents), out);
+                }
+            }
         }
         
-        private static void encodeEnumerable(IRubyObject enumerable, ThreadContext ctx, final OutputStream out) {
+        private static void encodeEnumerable(IRubyObject enumerable, 
+                                             boolean infinite, 
+                                             ThreadContext ctx, 
+                                             final OutputStream out) {
+            if (infinite)
+                encodeInfiniteEnumerable(enumerable, ctx, out);
+            else
+                encodeDefiniteEnumerable(enumerable, ctx, out);
+        }
+        
+        private static void encodeDefiniteEnumerable(IRubyObject enumerable, ThreadContext ctx, final OutputStream out) {
             RubyEnumerable.callEach(ctx.getRuntime(), ctx, enumerable, new BlockCallback() {
                 @Override
                 public IRubyObject call(ThreadContext tc, IRubyObject[] iros, Block blk) {
@@ -646,6 +669,35 @@ public class RubyAsn1 {
                     return tc.getRuntime().getNil();
                 }
             });
+        }
+        
+        private static void encodeInfiniteEnumerable(IRubyObject enumerable, ThreadContext ctx, final OutputStream out) {
+            class CheckEocCallback implements BlockCallback {
+                private boolean lastIsEoc;
+
+                @Override
+                public IRubyObject call(ThreadContext tc, IRubyObject[] iros, Block block) {
+                    IRubyObject sub = iros[0];
+                    encodeSingleSubElement(tc, sub, out);
+                    Asn1Data last = (Asn1Data) sub;
+                    Tag tag = last.getObject().getHeader().getTag();
+                    if (tag.getTag() == Asn1Tags.END_OF_CONTENTS  && tag.getTagClass().equals(TagClass.UNIVERSAL)) {
+                        lastIsEoc = true;
+                    } else {
+                        lastIsEoc = false;
+                    }
+                    
+                    return tc.getRuntime().getNil();
+                }
+                
+                public boolean lastIsEoc() { return lastIsEoc; }
+            }
+            Ruby runtime = ctx.getRuntime();
+            CheckEocCallback cb = new CheckEocCallback();
+            RubyEnumerable.callEach(runtime, ctx, enumerable, cb);
+            if (!cb.lastIsEoc()) { /* add a closing EOC if it was missing */
+                encodeSingleSubElement(ctx, Asn1EndOfContents.newInstance(ctx, cASN1EndOfContents), out);
+            }
         }
         
         private static void encodeSingleSubElement(ThreadContext ctx, IRubyObject value, OutputStream out) {
