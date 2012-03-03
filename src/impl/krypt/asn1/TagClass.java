@@ -45,7 +45,13 @@ public enum TagClass {
         this.mask = mask;
     }
     
-    
+    public static TagClass forName(String name) {
+        if ("IMPLICIT".equals(name))
+            return CONTEXT_SPECIFIC;
+        if ("EXPLICIT".equals(name))
+            return CONTEXT_SPECIFIC;
+        return TagClass.valueOf(name);
+    }
     
     private final byte mask;
     

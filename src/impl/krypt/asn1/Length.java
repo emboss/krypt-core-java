@@ -53,6 +53,11 @@ public class Length {
         this.encoding = null;
     }
     
+    public void invalidateEncoding() {
+        this.encoding = null;
+        this.length = 0;
+    }
+    
     public boolean hasBeenComputed() {
         return encoding != null;
     }

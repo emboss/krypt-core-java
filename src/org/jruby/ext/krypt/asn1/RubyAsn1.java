@@ -192,7 +192,7 @@ public class RubyAsn1 {
     
     private static TagClass tagClassOf(Ruby runtime, IRubyObject tag_class) {
         try {
-            return TagClass.valueOf(tag_class.toString());
+            return TagClass.forName(tag_class.toString());
         } catch (IllegalArgumentException ex) {
             throw Errors.newASN1Error(runtime, "Unknown tag class: " + tag_class.toString());
         }
@@ -207,6 +207,8 @@ public class RubyAsn1 {
         
         int itag = RubyNumeric.fix2int(tag);
         TagClass tc = tagClassOf(runtime, tag_class);
+        if (tag_class.toString().equals("EXPLICIT"))
+            data.explicit = true;
         
         initInternal(runtime,
                      data, 
@@ -239,6 +241,7 @@ public class RubyAsn1 {
         
         private Asn1Object object;
         private Asn1Codec codec;
+        private boolean explicit = false;
         
         private IRubyObject value = null;
         
@@ -298,6 +301,10 @@ public class RubyAsn1 {
             return this.value != null;
         }
         
+        protected int getDefaultTag() {
+            return -1; /* to be implemented properly by UNIVERSAL classes */
+        }
+        
         protected Asn1Data(Ruby runtime, 
                          RubyClass type, 
                          Asn1Object object) {
@@ -322,6 +329,8 @@ public class RubyAsn1 {
         public IRubyObject initialize(ThreadContext ctx, IRubyObject value, IRubyObject tag, IRubyObject tag_class) {
             Ruby runtime = ctx.getRuntime();
             checkTagAndClass(runtime, tag, tag_class);
+            if (tag_class.toString().equals("EXPLICIT"))
+                throw Errors.newASN1Error(runtime, "Explicit tagging is only supported for explicit UNIVERSAL sub classes of ASN1Data");
             int itag = RubyNumeric.fix2int(tag);
             TagClass tc = tagClassOf(runtime, tag_class);
             boolean isConstructed = value.respondsTo("each");
@@ -344,7 +353,7 @@ public class RubyAsn1 {
             return this;
         }
         
-        protected void codecCallback() {
+        protected void updateCallback() {
             Tag t = object.getHeader().getTag();
             if (!t.isConstructed())
                 codec = codecFor(t.getTag(), t.getTagClass());
@@ -382,7 +391,7 @@ public class RubyAsn1 {
             int itag = RubyNumeric.fix2int(value);
             Tag t = object.getHeader().getTag();
             t.setTag(itag);
-            codecCallback();
+            updateCallback();
             ivs.setInstanceVariable("tag", value);
             return value;
         }
@@ -395,10 +404,14 @@ public class RubyAsn1 {
                 return value;
             if(!(value instanceof RubySymbol))
                 throw Errors.newASN1Error(ctx.getRuntime(), "tag_class must be a symbol");
-            TagClass tc = TagClass.valueOf(value.toString());
+            String newTc = value.toString();
+            if (getDefaultTag() == -1 && newTc.equals("EXPLICIT"))
+                throw Errors.newASN1Error(ctx.getRuntime(), "Cannot explicitly tag value with unknown default tag");
+            TagClass tc = TagClass.forName(newTc);
             Tag t = object.getHeader().getTag();
             t.setTagClass(tc);
-            codecCallback();
+            updateCallback();
+            handleExplicitTagging(ctx, newTc);
             ivs.setInstanceVariable("tag_class", value);
             return value;
         }
@@ -418,12 +431,12 @@ public class RubyAsn1 {
         
         @JRubyMethod(name={"value="})
         public synchronized IRubyObject set_value(ThreadContext ctx, IRubyObject value) {
-            object.getHeader().getLength().setLength(0);
+            object.getHeader().getLength().invalidateEncoding();
             object.invalidateValue();
             boolean isConstructed = value.respondsTo("each");
             object.getHeader().getTag().setConstructed(isConstructed);
             this.value = value;
-            codecCallback();
+            updateCallback();
             getInstanceVariables().setInstanceVariable("value", value);
             return value;
         }
@@ -448,14 +461,61 @@ public class RubyAsn1 {
             return rt.newString(new ByteList(baos.toByteArray(), false));
         }
         
+        private void handleExplicitTagging(ThreadContext ctx, String newTc) {
+            boolean oldIsExplicit = explicit;
+            boolean newIsExplicit = newTc.equals("EXPLICIT");
+            boolean invalidate = false;
+            
+            if (newIsExplicit && !oldIsExplicit) {
+                explicit = true;
+                invalidate = true;
+            }
+            if (!newIsExplicit && oldIsExplicit) {
+                explicit = false;
+                invalidate = true;
+            }
+            
+            if (invalidate) {
+                if (!isDecoded()) {
+                    decodeValue(ctx);
+                }
+                object.invalidateValue();
+                impl.krypt.asn1.Header h = object.getHeader();
+                h.getTag().invalidateEncoding();
+                h.getLength().invalidateEncoding();
+            }
+        }
+        
         final void encodeToInternal(ThreadContext ctx, OutputStream out) {
             try {
-                if (object.getValue() == null)
+                if (object.getValue() == null) {
+                    if (explicit) {
+                        value = makeExplicit(ctx);
+                        object.getHeader().getTag().setConstructed(true);
+                    }
                     encodeTo(ctx, value, out);
-                else
+                }
+                else {
                     object.encodeTo(out);
+                }
             } catch (IOException ex) {
                 throw Errors.newSerializeError(ctx.getRuntime(), ex.getMessage());
+            }
+        }
+        
+        private IRubyObject makeExplicit(ThreadContext ctx) {
+            try {
+                Ruby rt = ctx.getRuntime();
+                int defaultTag = getDefaultTag();
+                if (defaultTag == -1)
+                    throw Errors.newASN1Error(rt, "Cannot encode value with explicit tagging");
+                RubyClass c = (RubyClass)ASN1_INFOS[defaultTag][1];
+                if (c == null)
+                    throw Errors.newASN1Error(rt, "Tag not supported " + defaultTag);
+                Asn1Data universal = (Asn1Data)c.newInstance(ctx, value, Block.NULL_BLOCK);
+                return RubyArray.newArray(rt, universal);
+            } catch (Exception ex) {
+                throw Errors.newASN1Error(ctx.getRuntime(), ex.getMessage());
             }
         }
         
@@ -496,7 +556,7 @@ public class RubyAsn1 {
         }
         
         @Override
-        protected void codecCallback() {
+        protected void updateCallback() {
             // do nothing
         }
         
@@ -544,7 +604,7 @@ public class RubyAsn1 {
         }
         
         @Override
-        protected void codecCallback() {
+        protected void updateCallback() {
             // do nothing
         }
         

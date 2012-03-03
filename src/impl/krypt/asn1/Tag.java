@@ -79,6 +79,10 @@ public class Tag {
         this.tag = tag;
         this.encoding = null;
     }
+    
+    public void invalidateEncoding() {
+        this.encoding = null;
+    }
 
     public TagClass getTagClass() {
         return tc;

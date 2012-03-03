@@ -237,7 +237,8 @@ public class Asn1Codecs {
 
         @Override
         public void validate(ValidateContext ctx) {
-            if (!ctx.getValue().isNil())
+            IRubyObject value = ctx.getValue();
+            if (!(value == null || value.isNil()))
                 throw Errors.newASN1Error(ctx.getRuntime(), "Value must be nil for NULL");
         }
     };
