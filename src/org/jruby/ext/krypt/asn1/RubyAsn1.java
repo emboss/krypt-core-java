@@ -520,10 +520,13 @@ public class RubyAsn1 {
         }
         
         protected final void decodeValue(ThreadContext ctx) {
-            if (object.getHeader().getTag().isConstructed())
+            if (object.getHeader().getTag().isConstructed()) {
                 this.value = Asn1Constructive.decodeValue(ctx, object.getValue(), object.getHeader().getLength().isInfiniteLength());
-            else
+                /* discard the cached encoding */
+                object.invalidateValue();
+            } else {
                 this.value = Asn1Primitive.decodeValue(codec, new DecodeContext(this, ctx.getRuntime(), object.getValue()));
+            }
         }
         
         private void encodeTo(ThreadContext ctx, IRubyObject value, OutputStream out) {
