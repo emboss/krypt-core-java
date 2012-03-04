@@ -65,6 +65,9 @@ public class Asn1Codecs {
 
         @Override
         public byte[] encode(EncodeContext ctx) {
+            IRubyObject value = ctx.getValue();
+            if (value == null || value.isNil()) 
+                return null;
             return ctx.getValue().convertToString().getBytes();
         }
 
@@ -80,7 +83,9 @@ public class Asn1Codecs {
 
         @Override
         public void validate(ValidateContext ctx) {
-            if (!(ctx.getValue() instanceof RubyString))
+            IRubyObject value = ctx.getValue();
+            if (value.isNil()) return;
+            if (!(value instanceof RubyString))
                 throw Errors.newASN1Error(ctx.getRuntime(), "Value must be a string");
         }
     };
@@ -196,7 +201,7 @@ public class Asn1Codecs {
             Ruby runtime = ctx.getRuntime();
             IRubyObject recv = ctx.getReceiver();
             if (value == null)
-                throw Errors.newASN1Error(runtime, "Invalid bit string encoding");
+                throw Errors.newASN1Error(runtime, "Invalid BIT STRING encoding");
             int unusedBits = value[0] & 0xff;
             checkUnusedBits(runtime, unusedBits);
             IRubyObject ret = runtime.newString(new ByteList(value, 1, value.length - 1, false));
@@ -206,6 +211,8 @@ public class Asn1Codecs {
         
         @Override
         public void validate(ValidateContext ctx) {
+            if (ctx.getValue().isNil())
+                throw Errors.newASN1Error(ctx.getRuntime(), "BIT STRING value cannot be empty");
             DEFAULT.validate(ctx);
         }
         
@@ -365,7 +372,10 @@ public class Asn1Codecs {
 
         @Override
         public byte[] encode(EncodeContext ctx) {
-            RubyString s = ctx.getValue().convertToString();
+            IRubyObject value = ctx.getValue();
+            if (value.isNil())
+                return null;
+            RubyString s = value.convertToString();
             s.associateEncoding(UTF8Encoding.INSTANCE);
             return s.getBytes();
         }

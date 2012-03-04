@@ -218,6 +218,7 @@ public class RubyAsn1 {
                      false);
 
         data.value = value;
+        data.modified = true; /* new values are "modified" by default */
         
         InstanceVariables ivs = data.getInstanceVariables();
         ivs.setInstanceVariable("tag", tag);
@@ -242,6 +243,7 @@ public class RubyAsn1 {
         private Asn1Object object;
         private Asn1Codec codec;
         private boolean explicit = false;
+        private boolean modified = false;
         
         private IRubyObject value = null;
         
@@ -291,6 +293,14 @@ public class RubyAsn1 {
         
         protected Asn1Codec getCodec() {
             return codec;
+        }
+        
+        protected boolean isModified() {
+            return modified;
+        }
+        
+        protected void setModified(boolean modified) {
+            this.modified = modified;
         }
         
         protected void setCodec(Asn1Codec codec) {
@@ -350,6 +360,8 @@ public class RubyAsn1 {
             ivs.setInstanceVariable("value", value);
             ivs.setInstanceVariable("infinite_length", runtime.getFalse());
         
+            this.modified = true; /* created from scratch means modified by default */
+            
             return this;
         }
         
@@ -360,17 +372,17 @@ public class RubyAsn1 {
         }
         
         @JRubyMethod
-        public synchronized IRubyObject tag() {
+        public IRubyObject tag() {
             return getInstanceVariables().getInstanceVariable("tag");
         }
         
         @JRubyMethod
-        public synchronized IRubyObject tag_class() {
+        public IRubyObject tag_class() {
             return getInstanceVariables().getInstanceVariable("tag_class");
         }
         
         @JRubyMethod
-        public synchronized IRubyObject infinite_length() {
+        public IRubyObject infinite_length() {
             return getInstanceVariables().getInstanceVariable("infinite_length");
         }
         
@@ -383,7 +395,7 @@ public class RubyAsn1 {
         }
         
         @JRubyMethod(name={"tag="})
-        public synchronized IRubyObject set_tag(IRubyObject value) {
+        public IRubyObject set_tag(IRubyObject value) {
             InstanceVariables ivs = getInstanceVariables();
             IRubyObject tag = ivs.getInstanceVariable("tag");
             if (tag == value)
@@ -393,11 +405,12 @@ public class RubyAsn1 {
             t.setTag(itag);
             updateCallback();
             ivs.setInstanceVariable("tag", value);
+            this.modified = true;
             return value;
         }
         
         @JRubyMethod(name={"tag_class="})
-        public synchronized IRubyObject set_tag_class(ThreadContext ctx, IRubyObject value) {
+        public IRubyObject set_tag_class(ThreadContext ctx, IRubyObject value) {
             InstanceVariables ivs = getInstanceVariables();
             IRubyObject tagClass = ivs.getInstanceVariable("tag_class");
             if (tagClass == value)
@@ -413,11 +426,12 @@ public class RubyAsn1 {
             updateCallback();
             handleExplicitTagging(ctx, newTc);
             ivs.setInstanceVariable("tag_class", value);
+            this.modified = true;
             return value;
         }
         
         @JRubyMethod(name={"infinite_length="})
-        public synchronized IRubyObject set_infinite_length(ThreadContext ctx, IRubyObject value) {
+        public IRubyObject set_infinite_length(ThreadContext ctx, IRubyObject value) {
             InstanceVariables ivs = getInstanceVariables();
             IRubyObject inflen = ivs.getInstanceVariable("infinite_length");
             if (inflen == value)
@@ -426,11 +440,12 @@ public class RubyAsn1 {
             Length l = object.getHeader().getLength();
             l.setInfiniteLength(boolVal);
             ivs.setInstanceVariable("infinite_length", RubyBoolean.newBoolean(ctx.getRuntime(), boolVal));
+            this.modified = true;
             return value;
         }
         
         @JRubyMethod(name={"value="})
-        public synchronized IRubyObject set_value(ThreadContext ctx, IRubyObject value) {
+        public IRubyObject set_value(ThreadContext ctx, IRubyObject value) {
             object.getHeader().getLength().invalidateEncoding();
             object.invalidateValue();
             boolean isConstructed = value.respondsTo("each");
@@ -438,11 +453,12 @@ public class RubyAsn1 {
             this.value = value;
             updateCallback();
             getInstanceVariables().setInstanceVariable("value", value);
+            this.modified = true;
             return value;
         }
         
         @JRubyMethod
-        public synchronized IRubyObject encode_to(ThreadContext ctx, IRubyObject io) {
+        public IRubyObject encode_to(ThreadContext ctx, IRubyObject io) {
             try {
                 Ruby rt = ctx.getRuntime();
                 OutputStream out = Streams.tryWrapAsOuputStream(rt, io);
@@ -454,11 +470,61 @@ public class RubyAsn1 {
         }
         
         @JRubyMethod
-        public synchronized IRubyObject to_der(ThreadContext ctx) {
+        public IRubyObject to_der(ThreadContext ctx) {
             Ruby rt = ctx.getRuntime();
             ByteArrayOutputStream baos = new ByteArrayOutputStream();
             encodeToInternal(ctx, baos);
             return rt.newString(new ByteList(baos.toByteArray(), false));
+        }
+        
+        @JRubyMethod(name={"=="})
+        public IRubyObject equals(ThreadContext ctx, IRubyObject other) {
+            Ruby runtime = ctx.getRuntime();
+            if (!(other instanceof Asn1Data))
+                return RubyBoolean.newBoolean(runtime, false);
+            IRubyObject der1 = to_der(ctx);
+            IRubyObject der2 = ((Asn1Data) other).to_der(ctx);
+            return der1.callMethod(ctx, "==", der2);
+        }
+        
+        @JRubyMethod(name={"<=>"})
+        public IRubyObject compare(ThreadContext ctx, IRubyObject other) {
+            Ruby runtime = ctx.getRuntime();
+            if (!(other instanceof Asn1Data))
+                throw Errors.newASN1Error(runtime, "ASN1Data is only comparable among other ASN1Data");
+            Asn1Data data = (Asn1Data)other;
+            Tag tag1 = object.getHeader().getTag();
+            Tag tag2 = data.object.getHeader().getTag();
+            int t1 = tag1.getTag();
+            int t2 = tag2.getTag();
+            if (t1 == Asn1Tags.END_OF_CONTENTS && tag1.getTagClass().equals(TagClass.UNIVERSAL))
+                return RubyNumeric.int2fix(runtime, 1);
+            if (t2 == Asn1Tags.END_OF_CONTENTS && tag2.getTagClass().equals(TagClass.UNIVERSAL))
+                return RubyNumeric.int2fix(runtime, -1);
+            if (t1 < t2)
+                return RubyNumeric.int2fix(runtime, -1);
+            if (t1 > t2)
+                return RubyNumeric.int2fix(runtime, 1);
+            
+            return compareSetOfOrder(runtime, to_der(ctx), data.to_der(ctx));
+        }
+        
+        private IRubyObject compareSetOfOrder(Ruby runtime, IRubyObject a, IRubyObject b) {
+            byte[] b1 = a.asString().getBytes();
+            byte[] b2 = b.asString().getBytes();
+            
+            int l1 = b1.length, l2 = b2.length, min = l1 < l2 ? l1 : l2;
+            
+            for (int i=0; i < min; ++i) {
+                if (b1[i] != b2[i]) {
+                    return (b1[i] & 0xff) < (b2[i] & 0xff) ? RubyNumeric.int2fix(runtime, -1) : 
+                                                             RubyNumeric.int2fix(runtime, 1); 
+                }
+            }
+            
+            if (l1 == l2) return RubyNumeric.int2fix(runtime, 0);
+            return l1 < l2 ? RubyNumeric.int2fix(runtime, -1) :
+                             RubyNumeric.int2fix(runtime, 1);
         }
         
         private void handleExplicitTagging(ThreadContext ctx, String newTc) {
@@ -498,6 +564,7 @@ public class RubyAsn1 {
                 else {
                     object.encodeTo(out);
                 }
+                this.modified = false; /* once encoded, modified status is reset */
             } catch (IOException ex) {
                 throw Errors.newSerializeError(ctx.getRuntime(), ex.getMessage());
             }
@@ -532,7 +599,7 @@ public class RubyAsn1 {
         private void encodeTo(ThreadContext ctx, IRubyObject value, OutputStream out) {
             try {
                 if (object.getHeader().getTag().isConstructed())
-                    Asn1Constructive.encodeTo(ctx, object, value, out);
+                    Asn1Constructive.encodeTo(ctx, this, value, out);
                 else
                     Asn1Primitive.encodeTo(codec, object, new EncodeContext(this, ctx.getRuntime(), value), out);
             } catch (IOException ex) {
@@ -668,8 +735,8 @@ public class RubyAsn1 {
             }
         }
         
-        static void encodeTo(ThreadContext ctx, Asn1Object object, IRubyObject ary, OutputStream out) throws IOException {
-            impl.krypt.asn1.Header h = object.getHeader();
+        static void encodeTo(ThreadContext ctx, Asn1Data data, IRubyObject ary, OutputStream out) throws IOException {
+            impl.krypt.asn1.Header h = data.getObject().getHeader();
             validateConstructed(ctx.getRuntime(), h, ary);
             
             Length l = h.getLength();
@@ -679,21 +746,30 @@ public class RubyAsn1 {
             if (!l.hasBeenComputed() && !l.isInfiniteLength()) {
                 /* compute the encoding of the sub elements and update length in header */
                 ByteArrayOutputStream baos = new ByteArrayOutputStream();
-                encodeSubElements(ctx, ary, l.isInfiniteLength(), baos);
+                encodeSubElements(ctx, ary, data, baos);
                 byte[] subEncoding = baos.toByteArray();
                 l.setLength(subEncoding.length);
                 h.encodeTo(out);
                 out.write(subEncoding);
             } else {
-                object.getHeader().encodeTo(out);
-                encodeSubElements(ctx, ary, l.isInfiniteLength(), out);
+                data.getObject().getHeader().encodeTo(out);
+                encodeSubElements(ctx, ary, data, out);
             }
         }
         
         private static void encodeSubElements(ThreadContext ctx, 
                                               IRubyObject enumerable, 
-                                              boolean infinite, 
+                                              Asn1Data data, 
                                               final OutputStream out) {
+            Asn1Object object = data.getObject();
+            Tag t = object.getHeader().getTag();
+            if (t.getTag() == Asn1Tags.SET &&
+                t.getTagClass().equals(TagClass.UNIVERSAL) &&
+                data.isModified()) {
+                enumerable = sortSetValue(ctx, enumerable);
+            }
+            boolean infinite = object.getHeader().getLength().isInfiniteLength();
+            
             if (enumerable instanceof RubyArray)
                 encodeArray((RubyArray)enumerable, infinite, ctx, out);
             else
@@ -772,6 +848,30 @@ public class RubyAsn1 {
             if (!(value instanceof Asn1Data))
                 throw Errors.newError(ctx.getRuntime(), "ArgumentError", "Value is not an ASN1Data");
             ((Asn1Data)value).encodeToInternal(ctx, out);
+        }
+        
+        private static IRubyObject sortSetValue(ThreadContext ctx, IRubyObject enumerable) {
+            if (enumerable.respondsTo("sort!")) {
+                enumerable.callMethod(ctx, "sort!");
+                return enumerable;
+            }
+            if (enumerable.respondsTo("sort")) {
+                return enumerable.callMethod(ctx, "sort");
+            }
+            return fallbackSortSetValue(ctx, enumerable);
+        }
+        
+        private static IRubyObject fallbackSortSetValue(ThreadContext ctx, IRubyObject enumerable) {
+            final RubyArray tmp = RubyArray.newArray(ctx.getRuntime());
+            RubyEnumerable.callEach19(ctx.getRuntime(), ctx, enumerable, new BlockCallback() {
+                @Override
+                public IRubyObject call(ThreadContext tc, IRubyObject[] iros, Block blk) {
+                    tmp.add(iros[0]);
+                    return tc.getRuntime().getNil();
+                }
+            });
+            tmp.callMethod(ctx, "sort!");
+            return tmp;
         }
     }
     
