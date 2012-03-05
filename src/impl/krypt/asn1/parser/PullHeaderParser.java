@@ -47,7 +47,8 @@ import java.io.InputStream;
  */
 public class PullHeaderParser implements Parser {
 
-    private static final int INT_BYTE_LEN = Integer.SIZE / 8;
+    private static final int MAX_TAG = Integer.MAX_VALUE >> 7;
+    private static final int MAX_LENGTH = Integer.MAX_VALUE >> 8;
     
     public PullHeaderParser() { }
     
@@ -114,10 +115,10 @@ public class PullHeaderParser implements Parser {
             throw new ParseException("Bits 7 to 1 of the first subsequent octet shall not be 0 for complex tag encodings");
 
         while (matchMask(b, Header.INFINITE_LENGTH_MASK)) {
+            if (tag > (MAX_TAG))
+                throw new ParseException("Complex tag too long.");
             tag <<= 7;
             tag |= (b & 0x7f);
-            if (tag > (Integer.MAX_VALUE >> 7))
-                throw new ParseException("Complex tag too long.");
             baos.write(b & 0xff);
             b = nextByte(in);
         }
@@ -148,13 +149,14 @@ public class PullHeaderParser implements Parser {
         
         if ((b & 0xff) == 0xff)
             throw new ParseException("Initial octet of complex definite length shall not be 0xFF");
-        if (numOctets > INT_BYTE_LEN)
-            throw new ParseException("Definite value length too long.");
+        
         
         byte[] encoding = new byte[numOctets+1];
         encoding[off++] = b;
         
         for (int i=numOctets; i > 0; i--) {
+            if (numOctets > MAX_LENGTH)
+                throw new ParseException("Definite value length too long.");
             b = nextByte(in);
             len <<= 8;
             len |= (b & 0xff);
