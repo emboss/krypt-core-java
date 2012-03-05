@@ -110,6 +110,8 @@ public class PullHeaderParser implements Parser {
 
         baos.write(b & 0xff);
         b = nextByte(in);
+        if (b == Header.INFINITE_LENGTH_MASK)
+            throw new ParseException("Bits 7 to 1 of the first subsequent octet shall not be 0 for complex tag encodings");
 
         while (matchMask(b, Header.INFINITE_LENGTH_MASK)) {
             tag <<= 7;
@@ -144,6 +146,8 @@ public class PullHeaderParser implements Parser {
         int numOctets = b & 0x7f;
         int off = 0;
         
+        if ((b & 0xff) == 0xff)
+            throw new ParseException("Initial octet of complex definite length shall not be 0xFF");
         if (numOctets > INT_BYTE_LEN)
             throw new ParseException("Definite value length too long.");
         

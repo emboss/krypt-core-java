@@ -84,7 +84,7 @@ public class Asn1Codecs {
         @Override
         public void validate(ValidateContext ctx) {
             IRubyObject value = ctx.getValue();
-            if (value.isNil()) return;
+            if (value == null || value.isNil()) return;
             if (!(value instanceof RubyString))
                 throw Errors.newASN1Error(ctx.getRuntime(), "Value must be a string");
         }
