@@ -256,16 +256,14 @@ public class RubyTemplate {
         @Override
         public Void visitPrimitive(ThreadContext ctx, Asn1Template t) {
             Ruby runtime = ctx.getRuntime();
-            HashAdapter definition = t.getDefinition();
-            String name = definition.getSymbol(NAME);
-            Integer defaultTag = definition.getIntegerFixnum(TYPE);
-            HashAdapter options = definition.getHash(OPTIONS);
-            Integer tag = options == null ? null : options.getIntegerFixnum(TAG);
-            String tagging = options == null ? null : options.getSymbol(TAGGING);
+            Definition d = new Definition(t.getDefinition());
+            String name = d.getName().orThrow(Errors.newASN1Error(runtime, "'name' missing in definition"));
+            Integer defaultTag = d.getTypeAsInteger().orThrow(Errors.newASN1Error(runtime, "'type' missing in definition"));
+            Integer tag = d.getTag().orNull();
+            String tagging = d.getTagging().orNull();
             Asn1Object object = t.getObject();
             impl.krypt.asn1.Header h = object.getHeader();
             
-            if (defaultTag == null) throw Errors.newASN1Error(runtime, "'type' missing in definition");
             Matcher.matchTagAndClass(ctx, h, tag, tagging, defaultTag);
             if (h.getTag().isConstructed()) throw Errors.newASN1Error(ctx.getRuntime(), "Constructive bit set");
             
