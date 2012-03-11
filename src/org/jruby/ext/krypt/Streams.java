@@ -29,6 +29,7 @@
  */
 package org.jruby.ext.krypt;
 
+import java.io.ByteArrayInputStream;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.io.InputStream;
@@ -61,6 +62,48 @@ public class Streams {
         catch (IllegalArgumentException ex) {
             throw runtime.newArgumentError(ex.getMessage());
         }
+    }
+   
+    public static InputStream asInputStreamDer(Ruby runtime, IRubyObject value) {
+        if (value.respondsTo("read"))
+            return Streams.tryWrapAsInputStream(runtime, value);
+        else
+            return new ByteArrayInputStream(toDerIfPossible(value).convertToString().getBytes());
+    }
+    
+    public static InputStream asInputStreamPem(Ruby runtime, IRubyObject value) {
+        if (value.respondsTo("read"))
+            return Streams.tryWrapAsInputStream(runtime, value);
+        else
+            return new ByteArrayInputStream(toPemIfPossible(value).convertToString().getBytes());
+    }
+    
+    private static IRubyObject convertData(IRubyObject obj, String convertMeth) {
+        return obj.callMethod(obj.getRuntime().getCurrentContext(), convertMeth);
+    }
+
+    private static IRubyObject convertDataIfPossible(IRubyObject data, String convertMeth) {
+        if(data.respondsTo(convertMeth)) {
+            return convertData(data, convertMeth);
+        } else {
+            return data;
+        }
+    }
+    
+    public static IRubyObject toDer(IRubyObject obj) {
+        return convertData(obj, "to_der");
+    }
+
+    public static IRubyObject toDerIfPossible(IRubyObject der) {
+        return convertDataIfPossible(der, "to_der");
+    }
+    
+    public static IRubyObject toPem(IRubyObject obj) {
+        return convertData(obj, "to_pem");
+    }
+
+    public static IRubyObject toPemIfPossible(IRubyObject pem) {
+        return convertDataIfPossible(pem, "to_pem");
     }
    
     public static void tryClose(Ruby runtime, InputStream in) {

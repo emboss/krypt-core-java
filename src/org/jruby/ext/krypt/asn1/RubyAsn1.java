@@ -879,7 +879,7 @@ public class RubyAsn1 {
     public static IRubyObject decode_der(ThreadContext ctx, IRubyObject recv, IRubyObject value) {
         try {
             Ruby rt = ctx.getRuntime();
-            InputStream in = asInputStreamDer(rt, value);
+            InputStream in = Streams.asInputStreamDer(rt, value);
             return generateAsn1Data(rt, in);
         } catch(Exception e) {
             throw Errors.newParseError(ctx.getRuntime(), e.getMessage());
@@ -890,7 +890,7 @@ public class RubyAsn1 {
     public static IRubyObject decode_pem(ThreadContext ctx, IRubyObject recv, IRubyObject value) {
         try {
             Ruby rt = ctx.getRuntime();
-            InputStream in = new PemInputStream(asInputStreamPem(rt, value));
+            InputStream in = new PemInputStream(Streams.asInputStreamPem(rt, value));
             return generateAsn1Data(rt, in);
         } catch(Exception e) {
             throw Errors.newParseError(ctx.getRuntime(), e.getMessage());
@@ -901,7 +901,7 @@ public class RubyAsn1 {
     public static IRubyObject decode(ThreadContext ctx, IRubyObject recv, IRubyObject value) {
         try {
             Ruby rt = ctx.getRuntime();
-            InputStream in = asInputStreamDer(rt, value);
+            InputStream in = Streams.asInputStreamDer(rt, value);
             CachingInputStream cache = new CachingInputStream(in);
             try {
                 InputStream pem = new PemInputStream(cache);
@@ -921,47 +921,6 @@ public class RubyAsn1 {
         if (h == null)
             throw Errors.newASN1Error(runtime, "Could not parse data");
         return Asn1Data.newAsn1Data(runtime, h.getObject());
-    }
-    
-    private static InputStream asInputStreamDer(Ruby runtime, IRubyObject value) {
-        if (value.respondsTo("read"))
-            return Streams.tryWrapAsInputStream(runtime, value);
-        else
-            return new ByteArrayInputStream(toDerIfPossible(value).convertToString().getBytes());
-    }
-    
-    private static InputStream asInputStreamPem(Ruby runtime, IRubyObject value) {
-        if (value.respondsTo("read"))
-            return Streams.tryWrapAsInputStream(runtime, value);
-        else
-            return new ByteArrayInputStream(toPemIfPossible(value).convertToString().getBytes());
-    }
-    
-    private static IRubyObject convertData(IRubyObject obj, String convertMeth) {
-        return obj.callMethod(obj.getRuntime().getCurrentContext(), convertMeth);
-    }
-
-    public static IRubyObject convertDataIfPossible(IRubyObject data, String convertMeth) {
-        if(data.respondsTo(convertMeth)) {
-            return convertData(data, convertMeth);
-        } else {
-            return data;
-        }
-    }
-    public static IRubyObject toDer(IRubyObject obj) {
-        return convertData(obj, "to_der");
-    }
-
-    public static IRubyObject toDerIfPossible(IRubyObject der) {
-        return convertDataIfPossible(der, "to_der");
-    }
-    
-    public static IRubyObject toPem(IRubyObject obj) {
-        return convertData(obj, "to_pem");
-    }
-
-    public static IRubyObject toPemIfPossible(IRubyObject pem) {
-        return convertDataIfPossible(pem, "to_pem");
     }
     
     private static RubyClass cASN1Data;
@@ -1113,5 +1072,6 @@ public class RubyAsn1 {
         
         RubyParser.createParser(runtime, mASN1);
         RubyHeader.createHeader(runtime, mASN1);
+        RubyTemplate.createTemplate(runtime, mASN1);
     }    
 }
