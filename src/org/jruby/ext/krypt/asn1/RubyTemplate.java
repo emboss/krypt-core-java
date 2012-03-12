@@ -75,6 +75,10 @@ public class RubyTemplate {
             this.template = template;
         }
         
+        protected RubyAsn1Template(Ruby runtime, Asn1Template template) {
+            this(runtime, cValue, template);
+        }
+        
         public Asn1Template getTemplate() { return this.template; }
         
         @JRubyMethod
@@ -90,33 +94,48 @@ public class RubyTemplate {
             return value;
         }
         
+        @JRubyMethod
+        public IRubyObject to_s(ThreadContext ctx) {
+            if (getMetaClass() == cValue) {
+                IRubyObject value = template.getValue();
+                if (value != null) {
+                    return value.callMethod(ctx, "to_s");
+                }
+            }
+            return super.to_s();
+        }
+        
         private IRubyObject ensureParsedAndDecoded(ThreadContext ctx, String ivname) {
             ErrorCollector collector = new ErrorCollector();
             try {
-                template.parse(ctx, this, collector);
+                if (!template.parse(ctx, this, collector))
+                    throw Errors.newASN1Error(ctx.getRuntime(), "Type mismatch");
                 collector.clear();
                 /* ivname has a leading @ */
-                Value v = (Value) getInstanceVariable(ivname.substring(1));
-                Asn1Template.decode(ctx, v, collector);
-                return v.getTemplate().getValue();
+                RubyAsn1Template v = (RubyAsn1Template) getInstanceVariable(ivname.substring(1));
+                Asn1Template.decode(ctx, v);
+                return v.getTemplate().accept(ctx, new ValueVisitor(v));
             } catch (RuntimeException ex) {
+                collector.add(ex);
                 throw templateError(collector.getErrorMessages(), ctx.getRuntime(), template.getDefinition());
             }
         }
     }
     
     public static class Asn1Template {
-        public Asn1Template(Asn1Object object, HashAdapter definition) {
+        public Asn1Template(Asn1Object object, HashAdapter definition, HashAdapter options) {
             if (object == null) throw new NullPointerException("object");
             this.object = object;
             this.isParsed = false;
             this.isDecoded = false;
             this.isModified = false;
             this.definition = definition;
+            this.options = options;
         }
         
         private final Asn1Object object;
         private HashAdapter definition;
+        private HashAdapter options;
         private IRubyObject value;
         private boolean isParsed;
         private boolean isDecoded;
@@ -124,7 +143,9 @@ public class RubyTemplate {
 
         public Asn1Object getObject() { return this.object; }
         public HashAdapter getDefinition() { return this.definition; }
-        public void setDefinition(RubyHash definition) { this.definition = new HashAdapter(definition); }
+        public void setDefinition(HashAdapter definition) { this.definition = definition; }
+        public HashAdapter getOptions() { return this.options; }
+        public void setOptions(HashAdapter options) { this.options = options; }
         public IRubyObject getValue() { return this.value; }
         public void setValue(IRubyObject value) { this.value = value; }
         public boolean isParsed() { return this.isParsed; }
@@ -146,28 +167,28 @@ public class RubyTemplate {
             else if (codec == CODEC_ANY) ret = visitor.visitAny(ctx, this);
             else if (codec == CODEC_CHOICE) ret = visitor.visitChoice(ctx, this);
             else throw Errors.newASN1Error(ctx.getRuntime(), "Unknown codec " + codec.asJavaString());
-            visitor.postCallback(ctx, this);
             return ret;
         }
         
-        void parse(ThreadContext ctx, IRubyObject recv, ErrorCollector collector) {
+        boolean parse(ThreadContext ctx, IRubyObject recv, ErrorCollector collector) {
             if (!isParsed) {
                 /* TODO: handle tagging */
-                CodecVisitor<Void> visitor = new ParseVisitor(recv, collector);
-                accept(ctx, visitor);
+                CodecVisitor<Boolean> visitor = new ParseVisitor(recv, collector);
+                return accept(ctx, visitor);
             }
+            return true;
         }
         
-        static void decode(ThreadContext ctx, Value v, ErrorCollector collector) {
+        static void decode(ThreadContext ctx, RubyAsn1Template v) {
             Asn1Template template = v.getTemplate();
             if (!template.isDecoded()) {
-                template.accept(ctx, new DecodeVisitor(v, collector));
+                template.accept(ctx, new DecodeVisitor(v));
             }
         }
     }
     
     private static RaiseException templateError(String message, Ruby rt, HashAdapter definition) {
-        Definition d = new Definition(definition);
+        Definition d = new Definition(definition, null);
         String codec = d.getCodec().asJavaString();
         String name = d.getName().orNull();
         return Errors.newASN1Error(rt, "Error while processing(" + codec + "|" + name +") " + message);
@@ -182,10 +203,9 @@ public class RubyTemplate {
         public T visitSetOf(ThreadContext ctx, Asn1Template t);
         public T visitAny(ThreadContext ctx, Asn1Template t);
         public T visitChoice(ThreadContext ctx, Asn1Template t);
-        public void postCallback(ThreadContext ctx, Asn1Template t);
     }
     
-    private static abstract class ErrorCollectingVisitor implements CodecVisitor<Void> {
+    private static abstract class ErrorCollectingVisitor<T> implements CodecVisitor<T> {
         private final ErrorCollector collector;
         
         public ErrorCollectingVisitor(ErrorCollector collector) {
@@ -200,42 +220,68 @@ public class RubyTemplate {
     private static class Matcher {
         private Matcher() {}
         
-        public static void matchTagAndClass(ThreadContext ctx,
+        public static boolean matchTagAndClass(ThreadContext ctx,
                                                   impl.krypt.asn1.Header header, 
                                                   Integer tag, 
                                                   String tagging, 
                                                   int defaultTag) {
-            matchTag(ctx, header, tag, defaultTag);
-            matchTagClass(ctx, header, tagging);
+            return matchTag(ctx, header, tag, defaultTag) &&
+                   matchTagClass(ctx, header, tagging);
         }
         
-        private static void matchTag(ThreadContext ctx,
+        public static boolean matchTag(ThreadContext ctx,
                                     impl.krypt.asn1.Header header,
                                     Integer tag,
                                     int defaultTag) {
-            int expected, actual = header.getTag().getTag();
-            
-            if (tag != null)
-                expected = tag;
-            else
-                expected = defaultTag;
-            if (actual != expected)
-                throw Errors.newASN1Error(ctx.getRuntime(), "Tag mismatch. Expected: " + expected + " Got: " + actual);
+            return header.getTag().getTag() == getExpectedTag( tag, defaultTag);
         }
         
-        private static void matchTagClass(ThreadContext ctx, impl.krypt.asn1.Header header, String tagging) {
-            TagClass expected, actual = header.getTag().getTagClass();
-            
-            if (tagging == null)
-                expected = TagClass.UNIVERSAL;
+        public static boolean matchTagClass(ThreadContext ctx, impl.krypt.asn1.Header header, String tagging) {
+            return getExpectedTagClass(tagging) == header.getTag().getTagClass();
+        }
+        
+        public static RaiseException tagMismatch(ThreadContext ctx,
+                                                  impl.krypt.asn1.Header header, 
+                                                  Integer tag, 
+                                                  String tagging, 
+                                                  int defaultTag) {
+            Tag t = header.getTag();
+            int actualTag = t.getTag();
+            TagClass actualTagClass = t.getTagClass();
+            int expectedTag = getExpectedTag(tag, defaultTag);
+            TagClass expectedTagClass = getExpectedTagClass(tagging);
+            StringBuilder msg = new StringBuilder();
+            if (expectedTag != actualTag) {
+                msg.append("Tag mismatch. Expected: ")
+                   .append(expectedTag)
+                   .append(" Got:")
+                   .append(actualTag);
+            }
+            if (!expectedTagClass.equals(actualTagClass)) {
+                msg.append(" Tag class mismatch. Expected:")
+                   .append(expectedTagClass)
+                   .append(" Got: ")
+                   .append(actualTagClass);
+            }
+            return Errors.newASN1Error(ctx.getRuntime(), msg.toString());
+        }
+        
+        private static int getExpectedTag(Integer tag, int defaultTag) {
+            if (tag != null)
+                return tag;
             else
-                expected = TagClass.forName(tagging);
-            if (!actual.equals(expected))
-                throw Errors.newASN1Error(ctx.getRuntime(), "Tag class mismatch. Expected: " + expected + " Got: " + actual);
+                return defaultTag;
+        }
+        
+        private static TagClass getExpectedTagClass(String tagging) {
+            if (tagging == null)
+                return TagClass.UNIVERSAL;
+            else
+                return TagClass.forName(tagging);
         }
     }
     
-    private static class ParseVisitor extends ErrorCollectingVisitor {
+    private static class ParseVisitor extends ErrorCollectingVisitor<Boolean> {
         private final IRubyObject recv;
 
         public ParseVisitor(IRubyObject recv, ErrorCollector collector) {
@@ -244,19 +290,19 @@ public class RubyTemplate {
         }
         
         @Override
-        public Void visitAny(ThreadContext ctx, Asn1Template t) {
+        public Boolean visitAny(ThreadContext ctx, Asn1Template t) {
             throw new UnsupportedOperationException("Not supported yet.");
         }
 
         @Override
-        public Void visitChoice(ThreadContext ctx, Asn1Template t) {
+        public Boolean visitChoice(ThreadContext ctx, Asn1Template t) {
             throw new UnsupportedOperationException("Not supported yet.");
         }
 
         @Override
-        public Void visitPrimitive(ThreadContext ctx, Asn1Template t) {
+        public Boolean visitPrimitive(ThreadContext ctx, Asn1Template t) {
             Ruby runtime = ctx.getRuntime();
-            Definition d = new Definition(t.getDefinition());
+            Definition d = new Definition(t.getDefinition(), t.getOptions());
             String name = d.getName().orThrow(Errors.newASN1Error(runtime, "'name' missing in definition"));
             Integer defaultTag = d.getTypeAsInteger().orThrow(Errors.newASN1Error(runtime, "'type' missing in definition"));
             Integer tag = d.getTag().orNull();
@@ -264,56 +310,78 @@ public class RubyTemplate {
             Asn1Object object = t.getObject();
             impl.krypt.asn1.Header h = object.getHeader();
             
-            Matcher.matchTagAndClass(ctx, h, tag, tagging, defaultTag);
-            if (h.getTag().isConstructed()) throw Errors.newASN1Error(ctx.getRuntime(), "Constructive bit set");
+            if (!Matcher.matchTagAndClass(ctx, h, tag, tagging, defaultTag)) {
+                if (!d.isOptional())
+                    throw Matcher.tagMismatch(ctx, h, tag, tagging, defaultTag);
+                if (!d.hasDefault()) return false;
+            }
             
             /* name is a symbol with a leading @ */
-            recv.getInstanceVariables().setInstanceVariable(name.substring(1), new Value(runtime, t));
-            return null;
+            recv.getInstanceVariables().setInstanceVariable(name.substring(1), new RubyAsn1Template(runtime, t));
+            t.setParsed(true);
+            return true;
         }
 
         @Override
-        public Void visitSequence(ThreadContext ctx, Asn1Template t) {
+        public Boolean visitSequence(ThreadContext ctx, Asn1Template t) {
             return visitConstructive(ctx, t, Asn1Tags.SEQUENCE);
         }
 
         @Override
-        public Void visitSequenceOf(ThreadContext ctx, Asn1Template t) {
+        public Boolean visitSequenceOf(ThreadContext ctx, Asn1Template t) {
             throw new UnsupportedOperationException("Not supported yet.");
         }
 
         @Override
-        public Void visitSet(ThreadContext ctx, Asn1Template t) {
+        public Boolean visitSet(ThreadContext ctx, Asn1Template t) {
             return visitConstructive(ctx, t, Asn1Tags.SET);
         }
 
         @Override
-        public Void visitSetOf(ThreadContext ctx, Asn1Template t) {
+        public Boolean visitSetOf(ThreadContext ctx, Asn1Template t) {
             throw new UnsupportedOperationException("Not supported yet.");
         }
 
         @Override
-        public Void visitTemplate(ThreadContext ctx, Asn1Template t) {
-            throw new UnsupportedOperationException("Not supported yet.");
-        }
-
-        @Override
-        public void postCallback(ThreadContext ctx, Asn1Template t) {
-            t.setParsed(true);
-        }
-        
-        private Void visitConstructive(ThreadContext ctx, Asn1Template t, int defaultTag) {
+        public Boolean visitTemplate(ThreadContext ctx, Asn1Template t) {
             Ruby runtime = ctx.getRuntime();
-            Definition d = new Definition(t.getDefinition());
+            Definition d = new Definition(t.getDefinition(), t.getOptions());
+            RubyClass type = d.getTypeAsClass().orThrow(Errors.newASN1Error(runtime, "'type' missing in ASN.1 definition"));
+            String name = d.getName().orThrow(Errors.newASN1Error(runtime, "'name' missing in ASN.1 definition"));
+            RubyHash typeDef = (RubyHash) type.instance_variable_get(ctx, runtime.newString("@definition"));
+            if (typeDef == null)
+                throw Errors.newASN1Error(runtime, type + " has no ASN.1 definition");
+            t.setDefinition(new HashAdapter(typeDef));
+            RubyAsn1Template instance = new RubyAsn1Template(runtime, type, t);
+            recv.getInstanceVariables().setInstanceVariable(name.substring(1), instance);
+            /* No further decoding needed */
+            /* Do not set parsed flag in order to have constructed value parsed */
+            t.setDecoded(true);
+            return true;
+        }
+
+        private Boolean visitConstructive(ThreadContext ctx, Asn1Template t, int defaultTag) {
+            Ruby runtime = ctx.getRuntime();
+            Definition d = new Definition(t.getDefinition(), t.getOptions());
             RubyArray layout = d.getLayout().orThrow(Errors.newASN1Error(runtime, "Constructive type misses 'layout' definition"));
             Integer tag = d.getTag().orNull();
             String tagging = d.getTagging().orNull();
             Asn1Object object = t.getObject();
             impl.krypt.asn1.Header h = object.getHeader();
             
-            Matcher.matchTagAndClass(ctx, h, tag, tagging, defaultTag);
-            if (!h.getTag().isConstructed())
-                throw Errors.newASN1Error(ctx.getRuntime(), "Constructive bit not set");
+            if (!Matcher.matchTagAndClass(ctx, h, tag, tagging, defaultTag)) {
+                if (!d.isOptional())
+                    throw Matcher.tagMismatch(ctx, h, tag, tagging, defaultTag);
+                if (d.hasDefault())
+                    return true;
+                else
+                    return false;
+            }
+            if (!h.getTag().isConstructed()) {
+                if (!d.isOptional())
+                    throw Errors.newASN1Error(ctx.getRuntime(), "Mandatory sequence value not found");
+                return false;
+            }
             
             int numParsed = 0;
             int minSize = d.getMinSize().orThrow(Errors.newASN1Error(runtime, "Constructive type misses 'min_size' entry"));
@@ -323,18 +391,16 @@ public class RubyTemplate {
             ErrorCollector collector = getCollector();
             
             for (int i=0; i < layoutSize; ++i) {
-                RubyHash currentDefinition = (RubyHash) layout.get(i);
+                HashAdapter currentDefinition = new HashAdapter((RubyHash) layout.get(i));
                 current.setDefinition(currentDefinition);
+                current.setOptions(currentDefinition.getHash(OPTIONS));
                 collector.clear();
-                try {
-                    current.parse(ctx, recv, collector);
+                if (current.parse(ctx, recv, collector)) {
                     numParsed++;
                     if (i < layoutSize - 1) {
                         current = nextTemplate(runtime, in);
                     }
-                } catch (Exception ex) {
-                    /* ignore, no match */
-                }
+                } /* else didn't match */
             }
             
             if (numParsed < minSize) {
@@ -355,14 +421,17 @@ public class RubyTemplate {
             
             /* invalidate cached encoding */
             object.invalidateValue();
-            return null;
+            t.setParsed(true);
+            /* No further decoding needed */
+            t.setDecoded(true);
+            return true;
         }
         
         private Asn1Template nextTemplate(Ruby runtime, InputStream in) {
             ParsedHeader next = PARSER.next(in);
             if (next == null)
                 throw Errors.newASN1Error(runtime, "Premature end of stream detected");
-            return new Asn1Template(next.getObject(), null);
+            return new Asn1Template(next.getObject(), null, null);
         }
         
         private void parseEoc(Ruby runtime, InputStream in) {
@@ -374,12 +443,11 @@ public class RubyTemplate {
                 throw Errors.newASN1Error(runtime, "No closing END OF CONTENTS found for constructive value");
         }
     };
-            
-    private static class DecodeVisitor extends ErrorCollectingVisitor {
+          
+    private static class DecodeVisitor implements CodecVisitor<Void> {
         private final IRubyObject recv;
 
-        public DecodeVisitor(IRubyObject recv, ErrorCollector collector) {
-            super(collector);
+        public DecodeVisitor(IRubyObject recv) {
             this.recv = recv;
         }
         
@@ -397,10 +465,13 @@ public class RubyTemplate {
         public Void visitPrimitive(ThreadContext ctx, Asn1Template t) {
             Asn1Object object = t.getObject();
             impl.krypt.asn1.Header h = object.getHeader();
-            Definition d = new Definition(t.getDefinition());
+            Definition d = new Definition(t.getDefinition(), t.getOptions());
             
             if (h.getLength().isInfiniteLength())
                 return visitPrimitiveInfiniteLength(ctx, t);
+            
+            if (h.getTag().isConstructed()) 
+                throw Errors.newASN1Error(ctx.getRuntime(), "Constructive bit set");
             
             int defaultTag = d.getTypeAsInteger()
                               .orThrow(Errors.newASN1Error(ctx.getRuntime(), "'type' missing in primitive ASN.1 definition"));
@@ -410,6 +481,7 @@ public class RubyTemplate {
             
             IRubyObject value = codec.decode(new DecodeContext(recv, ctx.getRuntime(), object.getValue()));
             t.setValue(value);
+            t.setDecoded(true);
             return null;
         }
         
@@ -419,7 +491,7 @@ public class RubyTemplate {
 
         @Override
         public Void visitSequence(ThreadContext ctx, Asn1Template t) {
-            throw new UnsupportedOperationException("Not supported yet.");
+            throw new RuntimeException("Internal error");
         }
 
         @Override
@@ -429,7 +501,7 @@ public class RubyTemplate {
 
         @Override
         public Void visitSet(ThreadContext ctx, Asn1Template t) {
-            throw new UnsupportedOperationException("Not supported yet.");
+            throw new RuntimeException("Internal error");
         }
 
         @Override
@@ -439,31 +511,58 @@ public class RubyTemplate {
 
         @Override
         public Void visitTemplate(ThreadContext ctx, Asn1Template t) {
-            throw new UnsupportedOperationException("Not supported yet.");
+            throw new RuntimeException("Internal error");
+        }
+
+    };
+    
+    private static class ValueVisitor implements CodecVisitor<IRubyObject> {
+        private final IRubyObject recv;
+
+        public ValueVisitor(IRubyObject recv) {
+            this.recv = recv;
+        }
+        
+        @Override
+        public IRubyObject visitAny(ThreadContext ctx, Asn1Template t) {
+            return t.getValue();
         }
 
         @Override
-        public void postCallback(ThreadContext ctx, Asn1Template t) {
-            t.setDecoded(true);
+        public IRubyObject visitChoice(ThreadContext ctx, Asn1Template t) {
+            return t.getValue();
+        }
+
+        @Override
+        public IRubyObject visitPrimitive(ThreadContext ctx, Asn1Template t) {
+            return t.getValue();
+        }
+        
+        @Override
+        public IRubyObject visitSequence(ThreadContext ctx, Asn1Template t) {
+            return recv;
+        }
+
+        @Override
+        public IRubyObject visitSequenceOf(ThreadContext ctx, Asn1Template t) {
+            return t.getValue();
+        }
+
+        @Override
+        public IRubyObject visitSet(ThreadContext ctx, Asn1Template t) {
+            return recv;
+        }
+
+        @Override
+        public IRubyObject visitSetOf(ThreadContext ctx, Asn1Template t) {
+            return t.getValue();
+        }
+
+        @Override
+        public IRubyObject visitTemplate(ThreadContext ctx, Asn1Template t) {
+            return recv;
         }
     };
-    
-    public static class Value extends RubyObject {
-        private Asn1Template template;
-        
-        protected Value(Ruby runtime, Asn1Template template) {
-            super(runtime, cValue);
-            if (template == null) throw new NullPointerException("template");
-            this.template = template;
-        }
-        
-        @JRubyMethod
-        public IRubyObject to_s(ThreadContext ctx) {
-            return template.getValue().callMethod(ctx, "to_s");
-        }
-        
-        public Asn1Template getTemplate() { return template; }
-    }
     
     public static class Parser {
         @JRubyMethod
@@ -485,7 +584,9 @@ public class RubyTemplate {
             RubyHash definition = (RubyHash) type.instance_variable_get(ctx, runtime.newString("@definition"));
             if (definition == null || definition.isNil()) 
                 throw Errors.newASN1Error(runtime, "Type + " + type + " has no ASN.1 definition");
-            Asn1Template template = new Asn1Template(h.getObject(), new HashAdapter(definition));
+            HashAdapter d = new HashAdapter(definition);
+            HashAdapter o = d.getHash(OPTIONS);
+            Asn1Template template = new Asn1Template(h.getObject(), d, o);
             return new RubyAsn1Template(runtime, type, template);
         }
     }
@@ -539,7 +640,7 @@ public class RubyTemplate {
         
         mTemplate.defineAnnotatedMethods(RubyAsn1Template.class);
         mParser.defineAnnotatedMethods(Parser.class);
-        cValue.defineAnnotatedMethods(Value.class);
+        cValue.defineAnnotatedMethods(RubyAsn1Template.class);
     }
     
     private static class Optional<T> {
@@ -563,24 +664,32 @@ public class RubyTemplate {
     }
     
     private static class Definition {
-        private final HashAdapter definitionHash;
+        private final HashAdapter definition;
         private final HashAdapter options;
         
-        public Definition(HashAdapter definitionHash) {
-            this.definitionHash = definitionHash;
-            this.options = this.definitionHash.getHash(OPTIONS);
+        public Definition(HashAdapter definition, HashAdapter options) {
+            this.definition = definition;
+            this.options = options;
         }
         
-        public IRubyObject getCodec() { return definitionHash.getObject(CODEC); }
-        public Optional<String> getName() { return new Optional<String>(definitionHash.getSymbol(NAME)); }
-        public Optional<Integer> getTypeAsInteger() { return new Optional<Integer>(definitionHash.getIntegerFixnum(TYPE)); }
-        public Optional<RubyArray> getLayout() { return new Optional<RubyArray>(definitionHash.getArray(LAYOUT)); }
-        public Optional<Integer> getMinSize() { return new Optional<Integer>(definitionHash.getIntegerFixnum(MIN_SIZE)); }
+        public IRubyObject getCodec() { return definition.getObject(CODEC); }
+        public Optional<String> getName() { return new Optional<String>(definition.getSymbol(NAME)); }
+        public Optional<Integer> getTypeAsInteger() { return new Optional<Integer>(definition.getIntegerFixnum(TYPE)); }
+        public Optional<RubyArray> getLayout() { return new Optional<RubyArray>(definition.getArray(LAYOUT)); }
+        public Optional<Integer> getMinSize() { return new Optional<Integer>(definition.getIntegerFixnum(MIN_SIZE)); }
         
-        public boolean getOptional() { 
+        public Optional<RubyClass> getTypeAsClass() { 
+            IRubyObject type = definition.getObject(TYPE);
+            if (type == null) return new Optional<RubyClass>(null);
+            return new Optional<RubyClass>((RubyClass) type);
+        }
+        
+        public boolean isOptional() { 
             if (options == null) return false;
             Boolean b = options.getBoolean(OPTIONAL);
-            return b == null ? false : b;
+            if (b != null && b == true) 
+                return true;
+            return hasDefault();
         }
         
         public Optional<Integer> getTag() {
@@ -596,6 +705,10 @@ public class RubyTemplate {
         public Optional<IRubyObject> getDefault() {
             if (options == null) return new Optional<IRubyObject>(null);
             return new Optional<IRubyObject>(options.getObject(DEFAULT));
+        }
+        
+        public boolean hasDefault() {
+            return getDefault().orNull() != null;
         }
     }
     
