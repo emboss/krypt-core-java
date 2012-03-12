@@ -93,7 +93,7 @@ public class HashAdapter implements Map {
     public HashAdapter getHash(Object key) {
         RubyHash h = (RubyHash) inner.get(key);
         if (h == null) return null;
-        return new HashAdapter(inner);
+        return new HashAdapter(h);
     }
     
     public IRubyObject getObject(Object key) {

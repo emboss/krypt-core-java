@@ -194,6 +194,16 @@ public class RubyTemplate {
         return Errors.newASN1Error(rt, "Error while processing(" + codec + "|" + name +") " + message);
     }
     
+    private static byte[] skipExplicitHeader(Asn1Object object) {
+        byte[] old = object.getValue();
+        impl.krypt.asn1.Header h = PARSER.next(new ByteArrayInputStream(old));
+        int headerLen = h.getHeaderLength();
+        int newLen = old.length - headerLen;
+        byte[] bytes = new byte[newLen];
+        System.arraycopy(old, headerLen, bytes, 0, newLen);
+        return bytes;
+    }
+    
     private interface CodecVisitor<T> {
         public T visitPrimitive(ThreadContext ctx, Asn1Template t);
         public T visitTemplate(ThreadContext ctx, Asn1Template t);
@@ -244,13 +254,19 @@ public class RubyTemplate {
                                                   impl.krypt.asn1.Header header, 
                                                   Integer tag, 
                                                   String tagging, 
-                                                  int defaultTag) {
+                                                  int defaultTag,
+                                                  String name) {
             Tag t = header.getTag();
             int actualTag = t.getTag();
             TagClass actualTagClass = t.getTagClass();
             int expectedTag = getExpectedTag(tag, defaultTag);
             TagClass expectedTagClass = getExpectedTagClass(tagging);
             StringBuilder msg = new StringBuilder();
+            if (name != null) {
+                msg.append("Could not parse ")
+                   .append(name)
+                   .append(": ");
+            }
             if (expectedTag != actualTag) {
                 msg.append("Tag mismatch. Expected: ")
                    .append(expectedTag)
@@ -312,7 +328,7 @@ public class RubyTemplate {
             
             if (!Matcher.matchTagAndClass(ctx, h, tag, tagging, defaultTag)) {
                 if (!d.isOptional())
-                    throw Matcher.tagMismatch(ctx, h, tag, tagging, defaultTag);
+                    throw Matcher.tagMismatch(ctx, h, tag, tagging, defaultTag, name);
                 if (!d.hasDefault()) return false;
             }
             
@@ -368,25 +384,31 @@ public class RubyTemplate {
             String tagging = d.getTagging().orNull();
             Asn1Object object = t.getObject();
             impl.krypt.asn1.Header h = object.getHeader();
+            byte[] bytes;
             
-            if (!Matcher.matchTagAndClass(ctx, h, tag, tagging, defaultTag)) {
-                if (!d.isOptional())
-                    throw Matcher.tagMismatch(ctx, h, tag, tagging, defaultTag);
-                if (d.hasDefault())
-                    return true;
-                else
-                    return false;
-            }
             if (!h.getTag().isConstructed()) {
                 if (!d.isOptional())
                     throw Errors.newASN1Error(ctx.getRuntime(), "Mandatory sequence value not found");
                 return false;
             }
+            if (!Matcher.matchTagAndClass(ctx, h, tag, tagging, defaultTag)) {
+                if (!d.isOptional()) 
+                    throw Matcher.tagMismatch(ctx, h, tag, tagging, defaultTag, "Constructive");
+                if (d.hasDefault())
+                    return true;
+                else
+                    return false;
+            }
+            
+            if (tagging != null && tagging.equals("EXPLICIT"))
+                bytes = skipExplicitHeader(object);
+            else
+                bytes = object.getValue();
             
             int numParsed = 0;
             int minSize = d.getMinSize().orThrow(Errors.newASN1Error(runtime, "Constructive type misses 'min_size' entry"));
             int layoutSize = layout.getLength();
-            InputStream in = new ByteArrayInputStream(object.getValue());
+            InputStream in = new ByteArrayInputStream(bytes);
             Asn1Template current = nextTemplate(runtime, in);
             ErrorCollector collector = getCollector();
             
@@ -466,9 +488,16 @@ public class RubyTemplate {
             Asn1Object object = t.getObject();
             impl.krypt.asn1.Header h = object.getHeader();
             Definition d = new Definition(t.getDefinition(), t.getOptions());
+            String tagging = d.getTagging().orNull();
+            byte[] bytes;
             
             if (h.getLength().isInfiniteLength())
                 return visitPrimitiveInfiniteLength(ctx, t);
+            
+            if (tagging != null && tagging.equals("EXPLICIT"))
+                bytes = skipExplicitHeader(object);
+            else
+                bytes = object.getValue();
             
             if (h.getTag().isConstructed()) 
                 throw Errors.newASN1Error(ctx.getRuntime(), "Constructive bit set");
@@ -479,7 +508,7 @@ public class RubyTemplate {
             Asn1Codec codec = Asn1Codecs.CODECS[defaultTag];
             if (codec == null) throw Errors.newASN1Error(ctx.getRuntime(), "No codec available for default tag: " + defaultTag);
             
-            IRubyObject value = codec.decode(new DecodeContext(recv, ctx.getRuntime(), object.getValue()));
+            IRubyObject value = codec.decode(new DecodeContext(recv, ctx.getRuntime(), bytes));
             t.setValue(value);
             t.setDecoded(true);
             return null;
