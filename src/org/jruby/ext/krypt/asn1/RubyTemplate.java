@@ -372,7 +372,7 @@ public class RubyTemplate {
                 return MatchResult.MATCHED;
             
             String name = definition.getName()
-                            .orCollectAndThrow(Errors.newASN1Error(runtime, "'name' missing in definition"), collector);
+                          .orCollectAndThrow(Errors.newASN1Error(runtime, "'name' missing in definition"), collector);
             
             if (!definition.isOptional(ctx))
                 throw collector.addAndReturn(Matcher.tagMismatch(ctx, h, tag, tagging, defaultTag, name));
@@ -445,14 +445,30 @@ public class RubyTemplate {
         }
         
         private void decodeInfiniteLength(ParseContext pctx) {
-            
+            throw new UnsupportedOperationException("Not supported yet.");
         }
     };
     
     private static final ParseStrategy TEMPLATE_PARSER = new ParseStrategy() {
         @Override
-        public MatchResult match(ParseContext ctx) {
-            return MatchResult.MATCHED; /* TODO */
+        public MatchResult match(ParseContext pctx) {
+            ThreadContext ctx = pctx.getCtx();
+            Ruby runtime = ctx.getRuntime();
+            ErrorCollector collector = pctx.getCollector();
+            Definition definition = pctx.getDefinition();
+            IRubyObject recv = pctx.getReceiver();
+            Asn1Template template = pctx.getTemplate();
+            RubyClass type = definition.getTypeAsClass(ctx)
+                             .orCollectAndThrow(Errors.newASN1Error(runtime, "'type' missing in ASN.1 definition"), collector);
+            RubyHash typeDef = (RubyHash) type.instance_variable_get(ctx, runtime.newString("@definition"));
+            if (typeDef == null)
+                throw Errors.newASN1Error(runtime, type + " has no ASN.1 definition");
+            HashAdapter currentDefinition = new HashAdapter(typeDef);
+            template.setDefinition(currentDefinition);
+            ParseStrategy s = template.accept(ctx, CodecStrategyVisitor.INSTANCE);
+            Definition d = new Definition(template.getDefinition(), template.getOptions());
+            ParseContext parseCtx = new ParseContext(ctx, recv, template, d, collector);
+            return s.match(parseCtx);
         }
 
         @Override
@@ -467,10 +483,6 @@ public class RubyTemplate {
                              .orCollectAndThrow(Errors.newASN1Error(runtime, "'type' missing in ASN.1 definition"), collector);
             String name = definition.getName()
                           .orCollectAndThrow(Errors.newASN1Error(runtime, "'name' missing in ASN.1 definition"), collector);
-            RubyHash typeDef = (RubyHash) type.instance_variable_get(ctx, runtime.newString("@definition"));
-            if (typeDef == null)
-                throw Errors.newASN1Error(runtime, type + " has no ASN.1 definition");
-            template.setDefinition(new HashAdapter(typeDef));
             RubyAsn1Template instance = new RubyAsn1Template(runtime, type, template);
             recv.getInstanceVariables().setInstanceVariable(name.substring(1), instance);
             /* No further decoding needed */
@@ -479,9 +491,7 @@ public class RubyTemplate {
         }
 
         @Override
-        public void decode(ParseContext ctx) {
-            throw new UnsupportedOperationException("Not supported yet.");
-        }
+        public void decode(ParseContext ctx) { /* NO OP */ }
     };
     
     private static final ParseStrategy SEQUENCE_PARSER = new ParseStrategy() {
