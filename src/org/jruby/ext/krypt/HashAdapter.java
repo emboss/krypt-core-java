@@ -34,6 +34,7 @@ import java.util.Map;
 import java.util.Set;
 import org.jruby.RubyArray;
 import org.jruby.RubyHash;
+import org.jruby.runtime.ThreadContext;
 import org.jruby.runtime.builtin.IRubyObject;
 
 /**
@@ -96,7 +97,7 @@ public class HashAdapter implements Map {
         return new HashAdapter(h);
     }
     
-    public IRubyObject getObject(Object key) {
-        return (IRubyObject) inner.get(key);
+    public IRubyObject getObject(ThreadContext ctx, IRubyObject key) {
+        return inner.op_aref(ctx, key);
     }
 }
