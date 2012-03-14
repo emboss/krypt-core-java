@@ -192,6 +192,8 @@ public class RubyTemplate {
                 collector.clear();
                 /* ivname has a leading @ */
                 RubyAsn1Template v = (RubyAsn1Template) getInstanceVariable(ivname.substring(1));
+                if (v == null)
+                    return ctx.getRuntime().getNil();
                 Asn1Template t = v.getTemplate();
                 s = t.accept(ctx, CodecStrategyVisitor.INSTANCE);
                 decode(ctx, v, t, s, collector);
@@ -282,6 +284,21 @@ public class RubyTemplate {
         byte[] bytes = new byte[newLen];
         System.arraycopy(old, headerLen, bytes, 0, newLen);
         return bytes;
+    }
+    
+    private static void setDefaultValue(ParseContext pctx, Definition definition) {
+        ThreadContext ctx = pctx.getCtx();
+        Ruby runtime = ctx.getRuntime();
+        ErrorCollector collector = pctx.getCollector();
+        IRubyObject defaultValue = definition.getDefault(ctx).orThrow();
+        String name = definition.getName().orCollectAndThrow(Errors.newASN1Error(runtime, "'name' missing in ASN.1 definition"), collector);
+        Asn1Template newTemplate = new Asn1Template(null, definition.getDefinition(), definition.getOptions());
+        newTemplate.setValue(defaultValue);
+        newTemplate.setParsed(true);
+        newTemplate.setDecoded(true);
+        pctx.getReceiver()
+            .getInstanceVariables()
+            .setInstanceVariable(name.substring(1), new RubyAsn1Template(runtime, newTemplate));
     }
     
     private static class Matcher {
@@ -378,14 +395,7 @@ public class RubyTemplate {
                 throw collector.addAndReturn(Matcher.tagMismatch(ctx, h, tag, tagging, defaultTag, name));
             
             if (definition.hasDefault(ctx)) { 
-                IRubyObject defaultValue = definition.getDefault(ctx).orThrow();
-                Asn1Template newTemplate = new Asn1Template(null, definition.getDefinition(), definition.getOptions());
-                newTemplate.setValue(defaultValue);
-                newTemplate.setParsed(true);
-                newTemplate.setDecoded(true);
-                pctx.getReceiver()
-                    .getInstanceVariables()
-                    .setInstanceVariable(name.substring(1), new RubyAsn1Template(runtime, newTemplate));
+                setDefaultValue(pctx, definition);
                 return MatchResult.MATCHED_BY_DEFAULT;
             }
             
@@ -570,9 +580,12 @@ public class RubyTemplate {
                       .orCollectAndThrow(Errors.newASN1Error(runtime, "Constructive type misses 'min_size' entry"), collector);
         int layoutSize = layout.getLength();
         InputStream in = new ByteArrayInputStream(bytes);
-        Asn1Template current = nextTemplate(runtime, in);
+        Asn1Template current = nextTemplate(in);
+        if (current == null)
+            throw collector.addAndReturn(Errors.newASN1Error(runtime, "Reached end of data"));
         
-        for (int i=0; i < layoutSize; ++i) {
+        boolean goOn = true;
+        for (int i=0; i < layoutSize && goOn; ++i) {
             HashAdapter currentDefinition = new HashAdapter((RubyHash) layout.get(i));
             collector.clear();
             current.setDefinition(currentDefinition);
@@ -585,17 +598,19 @@ public class RubyTemplate {
                 case MATCHED:
                     s.parse(parseCtx);
                     numParsed++;
-                    if (i < layoutSize - 1) 
-                        current = nextTemplate(runtime, in);
+                    if (i < layoutSize - 1) {
+                        current = nextTemplate(in);
+                        if (current == null) {
+                            checkRestIsOptional(pctx, layout, i+1);
+                            goOn = false;
+                        }
+                    }
                     break;
-                case MATCHED_BY_DEFAULT:
-                    numParsed++;
-                    break;
-                case NO_MATCH:
+                default:
                     break;
             }
         }
-
+        
         if (numParsed < minSize) {
             String rest = collector.getErrorMessages(); 
             throw Errors.newASN1Error(runtime, new StringBuilder()
@@ -619,10 +634,29 @@ public class RubyTemplate {
         template.setDecoded(true);
     }
     
-    private static Asn1Template nextTemplate(Ruby runtime, InputStream in) {
+    private static void checkRestIsOptional(ParseContext pctx, RubyArray layout, int index) {
+        ThreadContext ctx = pctx.getCtx();
+        for (int i=index; i < layout.size(); i++) {
+            HashAdapter currentDefinition = new HashAdapter((RubyHash) layout.get(i));
+            Definition definition = new Definition(currentDefinition, currentDefinition.getHash(OPTIONS));
+            if (!definition.isOptional(ctx)) {
+                String name = definition.getName().orNull();
+                String msg;
+                if (name != null)
+                    msg = "Mandatory value " + name + " not found";
+                else
+                    msg = "Mandatory value not found";
+                throw pctx.getCollector().addAndReturn(Errors.newASN1Error(ctx.getRuntime(), msg));
+            }
+            if (definition.hasDefault(ctx)) {
+                setDefaultValue(pctx, definition);
+            }
+        }
+    }
+    
+    private static Asn1Template nextTemplate(InputStream in) {
         ParsedHeader next = PARSER.next(in);
-        if (next == null)
-            throw Errors.newASN1Error(runtime, "Premature end of stream detected");
+        if (next == null) return null;
         return new Asn1Template(next.getObject(), null, null);
     }
 
@@ -789,24 +823,33 @@ public class RubyTemplate {
             this.value = value;
         }
         
-        public T orNull() { return value; }
-        
-        public T orThrow() {
-            if (value == null) throw new RuntimeException("Mandatory argument missing");
-            return value;
-        }
-        
-        public T orThrow(RuntimeException t) {
-            if (value == null) throw t;
-            return value;
-        }
-        
-        public T orCollectAndThrow(RuntimeException t, ErrorCollector collector) {
-            if (value == null) {
-                collector.add(t);
-                throw t;
+        public T orNull() { 
+            if (value == null)
+                return value;
+            if (value instanceof IRubyObject) {
+                if (((IRubyObject) value).isNil())
+                    return null;
             }
             return value;
+        }
+        
+        public T orThrow() {
+            return orThrow(new RuntimeException("Mandatory argument missing"));
+        }
+        
+        public T orThrow(RuntimeException e) {
+            T t = orNull();
+            if (t == null) throw e;
+            return t;
+        }
+        
+        public T orCollectAndThrow(RuntimeException e, ErrorCollector collector) {
+            T t = orNull();
+            if (t == null) {
+                collector.add(e);
+                throw e;
+            }
+            return t;
         }
     }
     
