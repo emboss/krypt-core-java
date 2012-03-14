@@ -135,4 +135,14 @@ public class Streams {
             return null;
         return baos.toByteArray();
     }
+    
+    public static boolean isConsumed(InputStream in) {
+        try {
+            if (in.read() != -1)
+                return false;
+            return true;
+        } catch (IOException ex) {
+            throw new RuntimeException(ex);
+        }
+    }
 }

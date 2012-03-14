@@ -626,6 +626,9 @@ public class RubyTemplate {
         if (h.getLength().isInfiniteLength()) {
             parseEoc(runtime, in);
         }
+        if (!Streams.isConsumed(in)) {
+            throw collector.addAndReturn(Errors.newASN1Error(runtime, "Data left that could not be parsed"));
+        }
 
         /* invalidate cached encoding */
         object.invalidateValue();
