@@ -880,7 +880,9 @@ public class RubyAsn1 {
         try {
             Ruby rt = ctx.getRuntime();
             InputStream in = Streams.asInputStreamDer(rt, value);
-            return generateAsn1Data(rt, in);
+            IRubyObject ret = generateAsn1Data(rt, in);
+            if (ret == null) throw Errors.newASN1Error(ctx.getRuntime(), "Could not decode ASN.1 data");
+            return ret;
         } catch(Exception e) {
             throw Errors.newParseError(ctx.getRuntime(), e.getMessage());
         }
@@ -891,7 +893,9 @@ public class RubyAsn1 {
         try {
             Ruby rt = ctx.getRuntime();
             InputStream in = new PemInputStream(Streams.asInputStreamPem(rt, value));
-            return generateAsn1Data(rt, in);
+            IRubyObject ret = generateAsn1Data(rt, in);
+            if (ret == null) throw Errors.newASN1Error(ctx.getRuntime(), "Could not decode ASN.1 data");
+            return ret;
         } catch(Exception e) {
             throw Errors.newParseError(ctx.getRuntime(), e.getMessage());
         }
@@ -899,27 +903,29 @@ public class RubyAsn1 {
     
     @JRubyMethod(meta = true)
     public static IRubyObject decode(ThreadContext ctx, IRubyObject recv, IRubyObject value) {
+        IRubyObject ret;
         try {
             Ruby rt = ctx.getRuntime();
             InputStream in = Streams.asInputStreamDer(rt, value);
             CachingInputStream cache = new CachingInputStream(in);
             try {
                 InputStream pem = new PemInputStream(cache);
-                return generateAsn1Data(rt, pem);
-            } catch (RaiseException ex) {
-                InputStream prefix = new ByteArrayInputStream(cache.getCachedBytes());
-                InputStream retry = new SequenceInputStream(prefix, in);
-                return generateAsn1Data(rt, retry);
-            }
+                if ((ret = generateAsn1Data(rt, pem)) != null) return ret;
+            } catch (RaiseException ex) { }
+            InputStream prefix = new ByteArrayInputStream(cache.getCachedBytes());
+            InputStream retry = new SequenceInputStream(prefix, in);
+            ret = generateAsn1Data(rt, retry);    
         } catch(Exception e) {
             throw Errors.newASN1Error(ctx.getRuntime(), e.getMessage());
         }
+        if (ret == null) throw Errors.newASN1Error(ctx.getRuntime(), "Could not decode ASN.1 data");
+        return ret;
     }
     
-    private static IRubyObject generateAsn1Data(Ruby runtime, InputStream in) {
+    protected static IRubyObject generateAsn1Data(Ruby runtime, InputStream in) {
         ParsedHeader h = PARSER.next(in);
         if (h == null)
-            throw Errors.newASN1Error(runtime, "Could not parse data");
+            return null;
         return Asn1Data.newAsn1Data(runtime, h.getObject());
     }
     

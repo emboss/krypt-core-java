@@ -52,6 +52,7 @@ import org.jruby.ext.krypt.asn1.RubyTemplate.CodecVisitor;
 import org.jruby.ext.krypt.asn1.RubyTemplate.Definition;
 import org.jruby.ext.krypt.asn1.RubyTemplate.ErrorCollector;
 import org.jruby.ext.krypt.asn1.RubyTemplate.RubyAsn1Template;
+import org.jruby.ext.krypt.asn1.TemplateParser.ParseStrategy.MatchResult;
 import org.jruby.runtime.ThreadContext;
 import org.jruby.runtime.builtin.IRubyObject;
 
@@ -70,17 +71,20 @@ public class TemplateParser {
         try {
             Ruby rt = ctx.getRuntime();
             InputStream in = Streams.asInputStreamDer(rt, value);
-            return generateAsn1Template(ctx, (RubyClass) recv, in);
+            IRubyObject ret = generateAsn1Template(ctx, (RubyClass) recv, in);
+            if (ret == null)
+                throw Errors.newASN1Error(rt, "Premature end of data");
+            return ret;
         } catch(Exception e) {
             throw Errors.newParseError(ctx.getRuntime(), e.getMessage());
         }
     }
 
-    private static IRubyObject generateAsn1Template(ThreadContext ctx, RubyClass type, InputStream in) {
+    protected static IRubyObject generateAsn1Template(ThreadContext ctx, RubyClass type, InputStream in) {
         ParsedHeader h = PARSER.next(in);
         Ruby runtime = ctx.getRuntime();
         if (h == null)
-            throw Errors.newASN1Error(runtime, "Could not parse template");
+            return null;
         RubyHash definition = (RubyHash) type.instance_variable_get(ctx, runtime.newString("@definition"));
         if (definition == null || definition.isNil()) 
             throw Errors.newASN1Error(runtime, "Type + " + type + " has no ASN.1 definition");
@@ -223,40 +227,17 @@ public class TemplateParser {
                                  .orCollectAndThrow(Errors.newASN1Error(runtime, "'type' missing in definition"), collector);
             Integer tag = definition.getTag().orNull();
             String tagging = definition.getTagging().orNull();
-            Asn1Object object = pctx.getTemplate().getObject();
-            impl.krypt.asn1.Header h = object.getHeader();
+            impl.krypt.asn1.Header h = pctx.getTemplate().getObject().getHeader();
             
             if (Matcher.matchTagAndClass(ctx, h, tag, tagging, defaultTag))
                 return MatchResult.MATCHED;
             
-            String name = definition.getName()
-                          .orCollectAndThrow(Errors.newASN1Error(runtime, "'name' missing in definition"), collector);
-            
-            if (!definition.isOptional(ctx))
-                throw collector.addAndReturn(Matcher.tagMismatch(ctx, h, tag, tagging, defaultTag, name));
-            
-            if (definition.hasDefault(ctx)) { 
-                setDefaultValue(pctx, definition);
-                return MatchResult.MATCHED_BY_DEFAULT;
-            }
-            
-            return MatchResult.NO_MATCH;
+            return checkOptionalOrDefault(pctx, defaultTag);
         }
 
         @Override
         public void parse(ParseContext pctx) {
-            ThreadContext ctx = pctx.getCtx();
-            Definition definition = pctx.getDefinition();
-            Ruby runtime = ctx.getRuntime();
-            ErrorCollector collector = pctx.getCollector();
-            String name = definition.getName()
-                          .orCollectAndThrow(Errors.newASN1Error(runtime, "'name' missing in definition"), collector);
-            /* name is a symbol with a leading @ */
-            Asn1Template template = pctx.getTemplate();
-            pctx.getReceiver()
-                .getInstanceVariables()
-                .setInstanceVariable(name.substring(1), new RubyAsn1Template(runtime, template));
-            template.setParsed(true);
+            parseAndAssign(pctx);
         }
 
         @Override
@@ -370,12 +351,12 @@ public class TemplateParser {
     private static final ParseStrategy SEQUENCE_PARSER = new ParseStrategy() {
         @Override
         public MatchResult match(ParseContext ctx) {
-            return matchCons(ctx, Asn1Tags.SEQUENCE);
+            return matchConstructed(ctx, Asn1Tags.SEQUENCE);
         }
 
         @Override
         public void parse(ParseContext ctx) {
-            parseCons(ctx);
+            parseConstructed(ctx);
         }
 
         @Override
@@ -385,41 +366,25 @@ public class TemplateParser {
     private static final ParseStrategy SET_PARSER = new ParseStrategy() {
         @Override
         public MatchResult match(ParseContext ctx) {
-            return matchCons(ctx, Asn1Tags.SET);
+            return matchConstructed(ctx, Asn1Tags.SET);
         }
 
         @Override
         public void parse(ParseContext ctx) {
-            parseCons(ctx);
+            parseConstructed(ctx);
         }
 
         @Override
         public void decode(ParseContext ctx) { /* NO_OP */ }
     };
     
-    private static ParseStrategy.MatchResult matchCons(ParseContext pctx, int defaultTag) {
-        ThreadContext ctx = pctx.getCtx();
-        ErrorCollector collector = pctx.getCollector();
-        Definition definition = pctx.getDefinition();
-        Integer tag = definition.getTag().orNull();
-        String tagging = definition.getTagging().orNull();
-        impl.krypt.asn1.Header h = pctx.getTemplate().getObject().getHeader();
-        
-        if (!h.getTag().isConstructed()) {
-            if (!definition.isOptional(ctx))
-                throw collector.addAndReturn(Errors.newASN1Error(ctx.getRuntime(), "Mandatory sequence value not found"));
-            return ParseStrategy.MatchResult.NO_MATCH;
-        }
-        if (Matcher.matchTagAndClass(ctx, h, tag, tagging, defaultTag))
+    private static ParseStrategy.MatchResult matchConstructed(ParseContext pctx, int defaultTag) {
+        if (tryMatchConstructed(pctx, defaultTag))
             return ParseStrategy.MatchResult.MATCHED;
-        
-        if (!definition.isOptional(ctx)) 
-                throw collector.addAndReturn(Matcher.tagMismatch(ctx, h, tag, tagging, defaultTag, "Constructive"));
-        
         return ParseStrategy.MatchResult.NO_MATCH;
     }
     
-    private static void parseCons(ParseContext pctx) {
+    private static void parseConstructed(ParseContext pctx) {
         ThreadContext ctx = pctx.getCtx();
         Ruby runtime = ctx.getRuntime();
         ErrorCollector collector = pctx.getCollector();
@@ -538,36 +503,113 @@ public class TemplateParser {
     private static final ParseStrategy SEQUENCE_OF_PARSER = new ParseStrategy() {
         @Override
         public MatchResult match(ParseContext ctx) {
-            throw new UnsupportedOperationException("Not supported yet.");
+            return matchConstructedOf(ctx, Asn1Tags.SEQUENCE);
         }
 
         @Override
         public void parse(ParseContext ctx) {
-            throw new UnsupportedOperationException("Not supported yet.");
+            parseAndAssign(ctx);
         }
 
         @Override
         public void decode(ParseContext ctx) {
-            throw new UnsupportedOperationException("Not supported yet.");
+            decodeConstructedOf(ctx);
         }
     };
     
     private static final ParseStrategy SET_OF_PARSER = new ParseStrategy() {
         @Override
         public MatchResult match(ParseContext ctx) {
-            throw new UnsupportedOperationException("Not supported yet.");
+            return matchConstructedOf(ctx, Asn1Tags.SET);
         }
 
         @Override
         public void parse(ParseContext ctx) {
-            throw new UnsupportedOperationException("Not supported yet.");
+            parseAndAssign(ctx);
         }
 
         @Override
         public void decode(ParseContext ctx) {
-            throw new UnsupportedOperationException("Not supported yet.");
+            decodeConstructedOf(ctx);
         }
     };
+    
+    private static MatchResult matchConstructedOf(ParseContext pctx, int defaultTag) {
+        if (tryMatchConstructed(pctx, defaultTag))
+            return ParseStrategy.MatchResult.MATCHED;
+        return checkOptionalOrDefault(pctx, defaultTag);
+    }
+    
+    private static void decodeConstructedOf(ParseContext pctx) {
+        ThreadContext ctx = pctx.getCtx();
+        Definition definition = pctx.getDefinition();
+        ErrorCollector collector = pctx.getCollector();
+        Ruby runtime = ctx.getRuntime();
+        String name = definition.getName()
+                      .orCollectAndThrow(Errors.newASN1Error(runtime, "'name' missing in ASN.1 definition"), collector);
+        RubyClass type = definition.getTypeAsClass(ctx)
+                         .orCollectAndThrow(Errors.newASN1Error(runtime, "'type missing in ASN.1 definition"), collector);
+        String tagging = definition.getTagging().orNull();
+        Asn1Template template = pctx.getTemplate();
+        Asn1Object object = template.getObject();
+        impl.krypt.asn1.Header h = object.getHeader();
+        byte[] bytes;
+
+        if (tagging != null && tagging.equals("EXPLICIT"))
+            bytes = skipExplicitHeader(object);
+        else
+            bytes = object.getValue();
+        
+        InputStream in = new ByteArrayInputStream(bytes);
+        RubyArray values;
+        
+        try {
+            if (type.hasModuleInHierarchy(RubyTemplate.mTemplate))
+                values = decodeConstructedOfTemplates(ctx, type, in);
+            else
+                values = decodeConstructedOfPrimitives(ctx, type, in);
+        } catch (RuntimeException e) {
+            throw collector.addAndReturn(Errors.newASN1Error(runtime, e.getMessage()));
+        }
+        
+        if (values.isEmpty() && !definition.isOptional(ctx)) {
+            throw collector.addAndReturn(Errors.newASN1Error(runtime, "Mandatory value " + name + "could not be parsed. Sequence is empty"));
+        }
+        
+        if (h.getLength().isInfiniteLength()) {
+            parseEoc(runtime, in);
+        }
+        if (!Streams.isConsumed(in)) {
+            throw collector.addAndReturn(Errors.newASN1Error(runtime, "Data left that could not be parsed"));
+        }
+
+        template.setValue(values);
+        /* invalidate cached encoding */
+        object.invalidateValue();
+        template.setDecoded(true);
+    }
+    
+    private static RubyArray decodeConstructedOfTemplates(ThreadContext ctx, RubyClass type, InputStream in) {
+        RubyArray ret = ctx.getRuntime().newArray();
+        IRubyObject current;
+        
+        while((current = generateAsn1Template(ctx, type, in)) != null) {
+            ret.add(current);
+        }
+        return ret;
+    }
+    
+    private static RubyArray decodeConstructedOfPrimitives(ThreadContext ctx, RubyClass type, InputStream in) {
+        RubyArray ret = ctx.getRuntime().newArray();
+        IRubyObject current;
+        
+        while((current = RubyAsn1.generateAsn1Data(ctx.getRuntime(), in)) != null) {
+            if (!current.callMethod(ctx, "kind_of?", type).isTrue())
+                throw Errors.newASN1Error(ctx.getRuntime(), "Expected " + type + " but got " + current.getMetaClass());
+            ret.add(current);
+        }
+        return ret;
+    }
     
     private static final ParseStrategy ANY_PARSER = new ParseStrategy() {
         @Override
@@ -626,6 +668,64 @@ public class TemplateParser {
         pctx.getReceiver()
             .getInstanceVariables()
             .setInstanceVariable(name.substring(1), new RubyAsn1Template(runtime, newTemplate));
+    }
+    
+    private static boolean tryMatchConstructed(ParseContext pctx, int defaultTag) {
+        ThreadContext ctx = pctx.getCtx();
+        ErrorCollector collector = pctx.getCollector();
+        Definition definition = pctx.getDefinition();
+        Integer tag = definition.getTag().orNull();
+        String tagging = definition.getTagging().orNull();
+        impl.krypt.asn1.Header h = pctx.getTemplate().getObject().getHeader();
+        
+        if (!h.getTag().isConstructed()) {
+            if (!definition.isOptional(ctx))
+                throw collector.addAndReturn(Errors.newASN1Error(ctx.getRuntime(), "Mandatory sequence value not found"));
+            return false;
+        }
+        if (Matcher.matchTagAndClass(ctx, h, tag, tagging, defaultTag))
+            return true;
+        
+        if (!definition.isOptional(ctx)) 
+                throw collector.addAndReturn(Matcher.tagMismatch(ctx, h, tag, tagging, defaultTag, "Constructive"));
+        return false;
+    }
+    
+    private static MatchResult checkOptionalOrDefault(ParseContext pctx, int defaultTag) {
+        ThreadContext ctx = pctx.getCtx();
+        Definition definition = pctx.getDefinition();
+        ErrorCollector collector = pctx.getCollector();
+        Ruby runtime = ctx.getRuntime();
+        Integer tag = definition.getTag().orNull();
+        String tagging = definition.getTagging().orNull();
+        impl.krypt.asn1.Header h = pctx.getTemplate().getObject().getHeader();
+            
+        String name = definition.getName()
+                      .orCollectAndThrow(Errors.newASN1Error(runtime, "'name' missing in definition"), collector);
+            
+        if (!definition.isOptional(ctx))
+            throw collector.addAndReturn(Matcher.tagMismatch(ctx, h, tag, tagging, defaultTag, name));
+
+        if (definition.hasDefault(ctx)) { 
+            setDefaultValue(pctx, definition);
+            return MatchResult.MATCHED_BY_DEFAULT;
+        }
+        return MatchResult.NO_MATCH;
+    }
+    
+    private static void parseAndAssign(ParseContext pctx) {
+        ThreadContext ctx = pctx.getCtx();
+        Definition definition = pctx.getDefinition();
+        Ruby runtime = ctx.getRuntime();
+        ErrorCollector collector = pctx.getCollector();
+        String name = definition.getName()
+                        .orCollectAndThrow(Errors.newASN1Error(runtime, "'name' missing in definition"), collector);
+        /* name is a symbol with a leading @ */
+        Asn1Template template = pctx.getTemplate();
+        pctx.getReceiver()
+            .getInstanceVariables()
+            .setInstanceVariable(name.substring(1), new RubyAsn1Template(runtime, template));
+        template.setParsed(true);
     }
     
 }

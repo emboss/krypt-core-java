@@ -271,6 +271,7 @@ public class RubyTemplate {
         return Errors.newASN1Error(ctx.getRuntime(), "Error while processing(" + codec + "|" + name +") " + message);
     }
     
+    protected static RubyModule mTemplate;
     protected static RubyClass cTemplateValue;
     
     protected static IRubyObject CODEC;
@@ -294,7 +295,7 @@ public class RubyTemplate {
     protected static IRubyObject CODEC_ANY;
     
     public static void createTemplate(Ruby runtime, RubyModule mASN1) {
-        RubyModule mTemplate = runtime.defineModuleUnder("Template", mASN1);
+        mTemplate = runtime.defineModuleUnder("Template", mASN1);
         RubyModule mParser = runtime.defineModuleUnder("Parser", mTemplate);
         cTemplateValue = mTemplate.defineClassUnder("Value", runtime.getObject(), ObjectAllocator.NOT_ALLOCATABLE_ALLOCATOR);
         
