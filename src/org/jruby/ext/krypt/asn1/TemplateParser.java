@@ -36,6 +36,10 @@ import impl.krypt.asn1.Tag;
 import impl.krypt.asn1.TagClass;
 import java.io.ByteArrayInputStream;
 import java.io.InputStream;
+import java.io.SequenceInputStream;
+import java.util.ArrayList;
+import java.util.Enumeration;
+import java.util.Iterator;
 import org.jruby.Ruby;
 import org.jruby.RubyArray;
 import org.jruby.RubyClass;
@@ -613,18 +617,70 @@ public class TemplateParser {
     
     private static final ParseStrategy ANY_PARSER = new ParseStrategy() {
         @Override
-        public MatchResult match(ParseContext ctx) {
-            throw new UnsupportedOperationException("Not supported yet.");
+        public MatchResult match(ParseContext pctx) {
+            ThreadContext ctx = pctx.getCtx();
+            Definition definition = pctx.getDefinition();
+            if (definition.isOptional(ctx)) {
+                Ruby runtime = ctx.getRuntime();
+                ErrorCollector collector = pctx.getCollector();
+                String name = definition.getName()
+                              .orCollectAndThrow(Errors.newASN1Error(runtime, "'name' missing in ASN.1 definition"), collector);
+                String tagging = definition.getTagging().orNull();
+                impl.krypt.asn1.Header header = pctx.getTemplate().getObject().getHeader();
+                Integer tag = definition.getTag().orNull();
+                int pseudoDefaultTag = tag;
+                
+                if (tag == null)
+                    throw collector.addAndReturn(Errors.newASN1Error(runtime, "Cannot unambiguously assign ANY value " + name));
+                
+                if (!Matcher.matchTagAndClass(ctx, header, tag, tagging, pseudoDefaultTag)) {
+                    if (definition.hasDefault(ctx)) {
+                        setDefaultValue(pctx, definition);
+                        return MatchResult.MATCHED_BY_DEFAULT;
+                    }
+                    return MatchResult.NO_MATCH;
+                }
+            }
+            return MatchResult.MATCHED;
         }
 
         @Override
         public void parse(ParseContext ctx) {
-            throw new UnsupportedOperationException("Not supported yet.");
+            parseAndAssign(ctx);
         }
 
         @Override
-        public void decode(ParseContext ctx) {
-            throw new UnsupportedOperationException("Not supported yet.");
+        public void decode(ParseContext pctx) {
+            ThreadContext ctx = pctx.getCtx();
+            Definition definition = pctx.getDefinition();
+            ErrorCollector collector = pctx.getCollector();
+            Ruby runtime = ctx.getRuntime();
+            String tagging = definition.getTagging().orNull();
+            Asn1Template template = pctx.getTemplate();
+            Asn1Object object = template.getObject();
+            final impl.krypt.asn1.Header h = object.getHeader();
+            final byte[] bytes;
+
+            if (tagging != null && tagging.equals("EXPLICIT"))
+                bytes = skipExplicitHeader(object);
+            else
+                bytes = object.getValue();
+
+            final Iterator<InputStream> iter = new ArrayList<InputStream>() {{
+                add(new ByteArrayInputStream(h.getTag().getEncoding()));
+                add(new ByteArrayInputStream(h.getLength().getEncoding()));
+                add(new ByteArrayInputStream(bytes));
+            }}.iterator();
+            
+            InputStream in = new SequenceInputStream(new Enumeration<InputStream>() {
+                @Override public boolean hasMoreElements() { return iter.hasNext(); }
+                @Override public InputStream nextElement() { return iter.next();    }
+            });
+            
+            IRubyObject asn1 = RubyAsn1.generateAsn1Data(runtime, in);
+            if (asn1 == null) throw collector.addAndReturn(Errors.newASN1Error(runtime, "Could not parse ANY value"));
+            template.setValue(asn1);
+            template.setDecoded(true);
         }
     };
     
