@@ -31,6 +31,7 @@ package org.jruby.ext.krypt.asn1;
 
 import impl.krypt.asn1.Asn1Object;
 import impl.krypt.asn1.EncodableHeader;
+import impl.krypt.asn1.Header;
 import impl.krypt.asn1.Length;
 import impl.krypt.asn1.ParsedHeader;
 import impl.krypt.asn1.ParserFactory;
@@ -321,7 +322,7 @@ public class RubyAsn1 {
             super(runtime, type);
             if (object == null) throw new NullPointerException();
             this.object = object;
-            impl.krypt.asn1.Header h = object.getHeader();
+            Header h = object.getHeader();
             Tag t = h.getTag();
             int itag = t.getTag();
             TagClass tc = t.getTagClass();
@@ -546,7 +547,7 @@ public class RubyAsn1 {
                     decodeValue(ctx);
                 }
                 object.invalidateValue();
-                impl.krypt.asn1.Header h = object.getHeader();
+                Header h = object.getHeader();
                 h.getTag().invalidateEncoding();
                 h.getLength().invalidateEncoding();
             }
@@ -720,7 +721,7 @@ public class RubyAsn1 {
             return rt.newArray(list);
         }
         
-        private static void validateConstructed(Ruby runtime, impl.krypt.asn1.Header h, IRubyObject ary) {
+        private static void validateConstructed(Ruby runtime, Header h, IRubyObject ary) {
             if (!ary.respondsTo("each"))
                 throw Errors.newASN1Error(runtime, "Value for constructed type must respond to each");
             
@@ -736,7 +737,7 @@ public class RubyAsn1 {
         }
         
         static void encodeTo(ThreadContext ctx, Asn1Data data, IRubyObject ary, OutputStream out) throws IOException {
-            impl.krypt.asn1.Header h = data.getObject().getHeader();
+            Header h = data.getObject().getHeader();
             validateConstructed(ctx.getRuntime(), h, ary);
             
             Length l = h.getLength();

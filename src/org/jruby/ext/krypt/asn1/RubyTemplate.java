@@ -114,7 +114,6 @@ public class RubyTemplate {
             return this;    
         }
         
-        
         @JRubyMethod
         public IRubyObject get_callback(ThreadContext ctx, IRubyObject ivname) {
             String name = ivname.asJavaString().substring(1);
@@ -201,7 +200,6 @@ public class RubyTemplate {
                 }
                 return valueTemplate.getValue();
             } catch (RuntimeException ex) {
-                collector.add(ex);
                 throw templateError(ctx, collector.getErrorMessages(), template.getDefinition());
             }
         }
@@ -209,7 +207,7 @@ public class RubyTemplate {
         private static void parse(ThreadContext ctx, IRubyObject recv, Asn1Template template, ParseStrategy s, ErrorCollector collector) {
             Definition d = new Definition(template.getDefinition(), template.getOptions());
             ParseContext parseCtx = new ParseContext(ctx, recv, template, d, collector);
-            if (!s.match(parseCtx).isSuccess())
+            if (!s.match(parseCtx.asMatchContext()).isSuccess())
                 throw collector.addAndReturn(Errors.newASN1Error(ctx.getRuntime(), "Type mismatch"));
             s.parse(parseCtx);
         }

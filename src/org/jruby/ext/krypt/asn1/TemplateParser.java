@@ -30,6 +30,7 @@
 package org.jruby.ext.krypt.asn1;
 
 import impl.krypt.asn1.Asn1Object;
+import impl.krypt.asn1.Header;
 import impl.krypt.asn1.ParsedHeader;
 import impl.krypt.asn1.ParserFactory;
 import impl.krypt.asn1.Tag;
@@ -100,7 +101,15 @@ public class TemplateParser {
         return new RubyAsn1Template(runtime, type, template);
     }
     
-    protected static class ParseContext {
+    protected static interface AbstractParseContext {
+        public ErrorCollector getCollector();
+        public ThreadContext getCtx();
+        public IRubyObject getReceiver();
+        public Definition getDefinition();
+        public void setDefinition(Definition d);
+    }
+    
+    protected static class ParseContext implements AbstractParseContext {
         private final ThreadContext ctx;
         private final IRubyObject recv;
         private final Asn1Template template;
@@ -115,12 +124,44 @@ public class TemplateParser {
             this.collector = collector;
         }
 
-        public ErrorCollector getCollector() { return collector; }
-        public ThreadContext getCtx() { return ctx; }
-        public IRubyObject getReceiver() { return recv; }
-        public Definition getDefinition() { return definition; }
-        public void setDefinition(Definition d) { this.definition = d; }
+        @Override public ErrorCollector getCollector() { return collector; }
+        @Override public ThreadContext getCtx() { return ctx; }
+        @Override public IRubyObject getReceiver() { return recv; }
+        @Override public Definition getDefinition() { return definition; }
+        @Override public void setDefinition(Definition d) { this.definition = d; }
         public Asn1Template getTemplate() { return template; }
+        public MatchContext asMatchContext() {
+            return new MatchContext(this);
+        }
+    }
+    
+    protected static class MatchContext implements AbstractParseContext {
+        private final ParseContext inner;
+        private Header header;
+        private Definition definition;
+        
+        public MatchContext(ParseContext pctx) {
+            this.inner = pctx;
+            this.header = pctx.getTemplate().getObject().getHeader();
+            this.definition = pctx.getDefinition();
+        }
+
+        @Override public ErrorCollector getCollector() { return inner.getCollector(); }
+        @Override public ThreadContext getCtx() { return inner.getCtx(); }
+        @Override public IRubyObject getReceiver() { return inner.getReceiver(); }
+        @Override public Definition getDefinition() { return definition; }
+        @Override public void setDefinition(Definition d) { this.definition = d; }
+        public Header getHeader() { return header; }
+        public void nextHeader() { 
+            Asn1Object object = inner.getTemplate().getObject();
+            InputStream in = new ByteArrayInputStream(object.getValue());
+            this.header = PARSER.next(in);
+        }
+        public MatchContext createTemporary(Definition d) {
+            MatchContext tmp = new MatchContext(inner);
+            tmp.setDefinition(d);
+            return tmp;
+        }
     }
     
     protected interface ParseStrategy {
@@ -133,7 +174,7 @@ public class TemplateParser {
                 return MATCHED.equals(this) || MATCHED_BY_DEFAULT.equals(this);
             }
         }
-        public MatchResult match(ParseContext ctx);
+        public MatchResult match(MatchContext ctx);
         public void parse(ParseContext ctx);
         public void decode(ParseContext ctx);
     }
@@ -156,7 +197,7 @@ public class TemplateParser {
         private Matcher() {}
         
         public static boolean matchTagAndClass(ThreadContext ctx,
-                                                  impl.krypt.asn1.Header header, 
+                                                  Header header, 
                                                   Integer tag, 
                                                   String tagging, 
                                                   int defaultTag) {
@@ -165,18 +206,18 @@ public class TemplateParser {
         }
         
         public static boolean matchTag(ThreadContext ctx,
-                                    impl.krypt.asn1.Header header,
+                                    Header header,
                                     Integer tag,
                                     int defaultTag) {
             return header.getTag().getTag() == getExpectedTag( tag, defaultTag);
         }
         
-        public static boolean matchTagClass(ThreadContext ctx, impl.krypt.asn1.Header header, String tagging) {
+        public static boolean matchTagClass(ThreadContext ctx, Header header, String tagging) {
             return getExpectedTagClass(tagging) == header.getTag().getTagClass();
         }
         
         public static RaiseException tagMismatch(ThreadContext ctx,
-                                                  impl.krypt.asn1.Header header, 
+                                                  Header header, 
                                                   Integer tag, 
                                                   String tagging, 
                                                   int defaultTag,
@@ -224,21 +265,20 @@ public class TemplateParser {
     
     private static final ParseStrategy PRIMITIVE_PARSER = new ParseStrategy() {
         @Override
-        public MatchResult match(ParseContext pctx) {
-            ThreadContext ctx = pctx.getCtx();
-            Definition definition = pctx.getDefinition();
-            ErrorCollector collector = pctx.getCollector();
+        public MatchResult match(MatchContext mctx) {
+            ThreadContext ctx = mctx.getCtx();
+            Definition definition = mctx.getDefinition();
+            ErrorCollector collector = mctx.getCollector();
             Ruby runtime = ctx.getRuntime();
             Integer defaultTag = definition.getTypeAsInteger()
                                  .orCollectAndThrow(Errors.newASN1Error(runtime, "'type' missing in definition"), collector);
             Integer tag = definition.getTagAsInteger().orNull();
             String tagging = definition.getTagging().orNull();
-            impl.krypt.asn1.Header h = pctx.getTemplate().getObject().getHeader();
-            
-            if (Matcher.matchTagAndClass(ctx, h, tag, tagging, defaultTag))
+                        
+            if (Matcher.matchTagAndClass(ctx, mctx.getHeader(), tag, tagging, defaultTag))
                 return MatchResult.MATCHED;
             
-            return checkOptionalOrDefault(pctx, defaultTag);
+            return checkOptionalOrDefault(mctx, defaultTag);
         }
 
         @Override
@@ -252,7 +292,7 @@ public class TemplateParser {
             ErrorCollector collector = pctx.getCollector();
             Asn1Template template = pctx.getTemplate();
             Asn1Object object = template.getObject();
-            impl.krypt.asn1.Header h = object.getHeader();
+            Header h = object.getHeader();
             Definition definition = pctx.getDefinition();
             String tagging = definition.getTagging().orNull();
             byte[] bytes;
@@ -291,22 +331,19 @@ public class TemplateParser {
     
     private static final ParseStrategy TEMPLATE_PARSER = new ParseStrategy() {
         @Override
-        public MatchResult match(ParseContext pctx) {
-            ThreadContext ctx = pctx.getCtx();
-            ErrorCollector collector = pctx.getCollector();
-            Asn1Template template = pctx.getTemplate();
-            Definition templateDefinition = pctx.getDefinition();
+        public MatchResult match(MatchContext mctx) {
+            ThreadContext ctx = mctx.getCtx();
+            Definition templateDefinition = mctx.getDefinition();
             HashAdapter templateOptions = templateDefinition.getOptions();
             
-            HashAdapter newDefinition = getInnerDefinition(pctx);
+            HashAdapter newDefinition = getInnerDefinition(mctx);
             Definition d = new Definition(newDefinition, templateOptions);
             ParseStrategy s = d.accept(ctx, CodecStrategyVisitor.INSTANCE);
-            ParseContext tmp  = new ParseContext(ctx, pctx.getReceiver(), template, d, collector);
+            MatchContext tmp  = mctx.createTemporary(d);
             ParseStrategy.MatchResult mr = s.match(tmp);
             if (mr.equals(ParseStrategy.MatchResult.NO_MATCH)) {
-                Definition outer = pctx.getDefinition();
-                if (outer.hasDefault(ctx)) {
-                    setDefaultValue(pctx, outer);
+                if (templateDefinition.hasDefault(ctx)) {
+                    setDefaultValue(mctx);
                     return MatchResult.MATCHED_BY_DEFAULT;
                 }
             }
@@ -340,7 +377,7 @@ public class TemplateParser {
             template.setParsed(false);
         }
         
-        private HashAdapter getInnerDefinition(ParseContext pctx) {
+        private HashAdapter getInnerDefinition(AbstractParseContext pctx) {
             Definition definition = pctx.getDefinition();
             ThreadContext ctx = pctx.getCtx();
             Ruby runtime = ctx.getRuntime();
@@ -358,7 +395,7 @@ public class TemplateParser {
     
     private static final ParseStrategy SEQUENCE_PARSER = new ParseStrategy() {
         @Override
-        public MatchResult match(ParseContext ctx) {
+        public MatchResult match(MatchContext ctx) {
             return matchConstructed(ctx, Asn1Tags.SEQUENCE);
         }
 
@@ -373,7 +410,7 @@ public class TemplateParser {
     
     private static final ParseStrategy SET_PARSER = new ParseStrategy() {
         @Override
-        public MatchResult match(ParseContext ctx) {
+        public MatchResult match(MatchContext ctx) {
             return matchConstructed(ctx, Asn1Tags.SET);
         }
 
@@ -386,8 +423,8 @@ public class TemplateParser {
         public void decode(ParseContext ctx) { /* NO_OP */ }
     };
     
-    private static ParseStrategy.MatchResult matchConstructed(ParseContext pctx, int defaultTag) {
-        if (tryMatchConstructed(pctx, defaultTag))
+    private static ParseStrategy.MatchResult matchConstructed(MatchContext mctx, int defaultTag) {
+        if (tryMatchConstructed(mctx, defaultTag))
             return ParseStrategy.MatchResult.MATCHED;
         return ParseStrategy.MatchResult.NO_MATCH;
     }
@@ -403,7 +440,7 @@ public class TemplateParser {
                            .orCollectAndThrow(Errors.newASN1Error(runtime, "Constructive type misses 'layout' definition"), collector);
         String tagging = definition.getTagging().orNull();
         Asn1Object object = template.getObject();
-        impl.krypt.asn1.Header h = object.getHeader();
+        Header h = object.getHeader();
         byte[] bytes;
 
         if (tagging != null && tagging.equals("EXPLICIT"))
@@ -428,11 +465,11 @@ public class TemplateParser {
             current.setOptions(currentDefinition.getHash(RubyTemplate.OPTIONS));
             ParseStrategy s = current.accept(ctx, CodecStrategyVisitor.INSTANCE);
             Definition d = new Definition(current.getDefinition(), current.getOptions());
-            ParseContext parseCtx = new ParseContext(ctx, recv, current, d, collector);
-            ParseStrategy.MatchResult mr = s.match(parseCtx);
+            ParseContext innerCtx = new ParseContext(ctx, recv, current, d, collector);
+            ParseStrategy.MatchResult mr = s.match(innerCtx.asMatchContext());
             switch (mr) {
                 case MATCHED:
-                    s.parse(parseCtx);
+                    s.parse(innerCtx);
                     numParsed++;
                     if (i < layoutSize - 1) {
                         current = nextTemplate(in);
@@ -446,7 +483,7 @@ public class TemplateParser {
                     break;
             }
         }
-        
+
         if (numParsed < minSize) {
             String rest = collector.getErrorMessages(); 
             throw Errors.newASN1Error(runtime, new StringBuilder()
@@ -484,7 +521,9 @@ public class TemplateParser {
                 throw pctx.getCollector().addAndReturn(Errors.newASN1Error(ctx.getRuntime(), msg));
             }
             if (definition.hasDefault(ctx)) {
-                setDefaultValue(pctx, definition);
+                MatchContext mctx = pctx.asMatchContext();
+                mctx.setDefinition(definition);
+                setDefaultValue(mctx);
             }
         }
     }
@@ -506,7 +545,7 @@ public class TemplateParser {
     
     private static final ParseStrategy SEQUENCE_OF_PARSER = new ParseStrategy() {
         @Override
-        public MatchResult match(ParseContext ctx) {
+        public MatchResult match(MatchContext ctx) {
             return matchConstructedOf(ctx, Asn1Tags.SEQUENCE);
         }
 
@@ -523,7 +562,7 @@ public class TemplateParser {
     
     private static final ParseStrategy SET_OF_PARSER = new ParseStrategy() {
         @Override
-        public MatchResult match(ParseContext ctx) {
+        public MatchResult match(MatchContext ctx) {
             return matchConstructedOf(ctx, Asn1Tags.SET);
         }
 
@@ -538,7 +577,7 @@ public class TemplateParser {
         }
     };
     
-    private static MatchResult matchConstructedOf(ParseContext pctx, int defaultTag) {
+    private static MatchResult matchConstructedOf(MatchContext pctx, int defaultTag) {
         if (tryMatchConstructed(pctx, defaultTag))
             return ParseStrategy.MatchResult.MATCHED;
         return checkOptionalOrDefault(pctx, defaultTag);
@@ -555,7 +594,7 @@ public class TemplateParser {
         String tagging = definition.getTagging().orNull();
         Asn1Template template = pctx.getTemplate();
         Asn1Object object = template.getObject();
-        impl.krypt.asn1.Header h = object.getHeader();
+        Header h = object.getHeader();
         byte[] bytes;
 
         if (tagging != null && tagging.equals("EXPLICIT"))
@@ -616,24 +655,23 @@ public class TemplateParser {
     
     private static final ParseStrategy ANY_PARSER = new ParseStrategy() {
         @Override
-        public MatchResult match(ParseContext pctx) {
-            ThreadContext ctx = pctx.getCtx();
-            Definition definition = pctx.getDefinition();
+        public MatchResult match(MatchContext mctx) {
+            ThreadContext ctx = mctx.getCtx();
+            Definition definition = mctx.getDefinition();
             if (definition.isOptional(ctx)) {
                 Ruby runtime = ctx.getRuntime();
-                ErrorCollector collector = pctx.getCollector();
+                ErrorCollector collector = mctx.getCollector();
                 String name = determineName(definition.getName().orNull());
                 String tagging = definition.getTagging().orNull();
-                impl.krypt.asn1.Header header = pctx.getTemplate().getObject().getHeader();
                 Integer tag = definition.getTagAsInteger().orNull();
                 int pseudoDefaultTag = tag;
                 
                 if (tag == null)
                     throw collector.addAndReturn(Errors.newASN1Error(runtime, "Cannot unambiguously assign ANY value " + name));
                 
-                if (!Matcher.matchTagAndClass(ctx, header, tag, tagging, pseudoDefaultTag)) {
+                if (!Matcher.matchTagAndClass(ctx, mctx.getHeader(), tag, tagging, pseudoDefaultTag)) {
                     if (definition.hasDefault(ctx)) {
-                        setDefaultValue(pctx, definition);
+                        setDefaultValue(mctx);
                         return MatchResult.MATCHED_BY_DEFAULT;
                     }
                     return MatchResult.NO_MATCH;
@@ -656,7 +694,7 @@ public class TemplateParser {
             String tagging = definition.getTagging().orNull();
             Asn1Template template = pctx.getTemplate();
             Asn1Object object = template.getObject();
-            final impl.krypt.asn1.Header h = object.getHeader();
+            final Header h = object.getHeader();
             final byte[] bytes;
 
             if (tagging != null && tagging.equals("EXPLICIT"))
@@ -684,17 +722,16 @@ public class TemplateParser {
     
     private static final ParseStrategy CHOICE_PARSER = new ParseStrategy() {
         @Override
-        public MatchResult match(ParseContext pctx) {
-            ThreadContext ctx = pctx.getCtx();
+        public MatchResult match(MatchContext mctx) {
+            ThreadContext ctx = mctx.getCtx();
             Ruby runtime = ctx.getRuntime();
-            ErrorCollector collector = pctx.getCollector();
-            Definition definition = pctx.getDefinition();
-            IRubyObject recv = pctx.getReceiver();
-            Asn1Template template = pctx.getTemplate();
+            ErrorCollector collector = mctx.getCollector();
+            Definition definition = mctx.getDefinition();
             RubyArray layout = definition.getLayout()
                                .orCollectAndThrow(Errors.newASN1Error(runtime, "Constructive type misses 'layout' definition"), collector);
             int layoutSize = layout.size();
             int firstAny = -1;
+            String tagging = enforceExplicitTagging(runtime, definition, collector);
             
             for (int i=0; i < layoutSize; ++i) {
                 HashAdapter currentDefinition = new HashAdapter((RubyHash) layout.get(i));
@@ -704,17 +741,21 @@ public class TemplateParser {
                 if (codec == RubyTemplate.CODEC_ANY && firstAny == -1)
                     firstAny = i;
                 
-                Definition d = new Definition(currentDefinition, currentDefinition.getHash(RubyTemplate.OPTIONS));
+                HashAdapter options = currentDefinition.getHash(RubyTemplate.OPTIONS); 
+                Definition d = new Definition(currentDefinition, options);
                 ParseStrategy s = d.accept(ctx, CodecStrategyVisitor.INSTANCE);
-                ParseContext parseCtx = new ParseContext(ctx, recv, template, d, collector);
+                MatchContext innerCtx = mctx.createTemporary(d);
+                if (!successfullySkipHeaderIfExplicit(tagging, innerCtx))
+                    return MatchResult.NO_MATCH;
+                
                 try {
-                    ParseStrategy.MatchResult mr = s.match(parseCtx);
+                    ParseStrategy.MatchResult mr = s.match(innerCtx);
                     switch (mr) {
                     case MATCHED:
                         definition.setMatchedIndex(i);
                         return MatchResult.MATCHED;
                     case MATCHED_BY_DEFAULT: 
-                        return MatchResult.MATCHED_BY_DEFAULT;
+                        throw collector.addAndReturn(Errors.newASN1Error(runtime, "Inner CHOICE definition cannot have default values"));
                     default:
                         break;
                     }
@@ -734,6 +775,25 @@ public class TemplateParser {
             
             return MatchResult.NO_MATCH;
         }
+        
+        private String enforceExplicitTagging(Ruby runtime, Definition definition, ErrorCollector collector) {
+            String tagging = definition.getTagging().orNull();
+            if (!(tagging == null || tagging.equals("EXPLICIT"))) {
+                throw collector.addAndReturn(Errors.newASN1Error(runtime, "Only explicit tagging is allowed for CHOICEs"));
+            }
+            return tagging;
+        }
+        
+        private boolean successfullySkipHeaderIfExplicit(String tagging, MatchContext mctx) {
+            if (tagging != null) {
+                try {
+                    mctx.nextHeader();
+                } catch (RuntimeException ex) {
+                    return false;
+                }
+            }
+            return true;
+        }
 
         @Override
         public void parse(ParseContext pctx) {
@@ -746,10 +806,11 @@ public class TemplateParser {
             RubyArray layout = definition.getLayout()
                                .orCollectAndThrow(Errors.newASN1Error(runtime, "Constructive type misses 'layout' definition"), collector);
             int matchedIndex = definition.getMatchedIndex();
+            String tagging = enforceExplicitTagging(runtime, definition, collector);
             InstanceVariables ivs = recv.getInstanceVariables();
             
             HashAdapter matchedDef = new HashAdapter((RubyHash) layout.get(matchedIndex));
-            HashAdapter matchedOpts = matchedDef.getHash(RubyTemplate.OPTIONS);
+            HashAdapter matchedOpts = tagging != null ? definition.getOptions() : matchedDef.getHash(RubyTemplate.OPTIONS);
             HashAdapter oldDef = definition.getDefinition();
             HashAdapter oldOptions = definition.getOptions();
             
@@ -758,8 +819,8 @@ public class TemplateParser {
             Definition d = new Definition(matchedDef, matchedOpts);
             ParseContext innerCtx = new ParseContext(ctx, recv, template, d, collector);
             d.accept(ctx, CodecStrategyVisitor.INSTANCE).parse(innerCtx);
-            RubyAsn1Template v = (RubyAsn1Template) ivs.getInstanceVariable("value");
             
+            RubyAsn1Template v = (RubyAsn1Template) ivs.getInstanceVariable("value");
             Asn1Template choiceTemplate = new Asn1Template(null, oldDef, oldOptions);
             choiceTemplate.setMatchedLayoutIndex(matchedIndex);
             choiceTemplate.setValue(v);
@@ -780,7 +841,7 @@ public class TemplateParser {
     
     private static byte[] skipExplicitHeader(Asn1Object object) {
         byte[] old = object.getValue();
-        impl.krypt.asn1.Header h = PARSER.next(new ByteArrayInputStream(old));
+        Header h = PARSER.next(new ByteArrayInputStream(old));
         int headerLen = h.getHeaderLength();
         int newLen = old.length - headerLen;
         byte[] bytes = new byte[newLen];
@@ -795,9 +856,10 @@ public class TemplateParser {
             return "value";
     }
     
-    private static void setDefaultValue(ParseContext pctx, Definition definition) {
-        ThreadContext ctx = pctx.getCtx();
+    private static void setDefaultValue(MatchContext mctx) {
+        ThreadContext ctx = mctx.getCtx();
         Ruby runtime = ctx.getRuntime();
+        Definition definition = mctx.getDefinition();
         IRubyObject defaultValue = definition.getDefault(ctx).orThrow();
         String name = determineName(definition.getName().orNull());
         Asn1Template newTemplate = new Asn1Template(null, definition.getDefinition(), definition.getOptions());
@@ -805,18 +867,18 @@ public class TemplateParser {
         newTemplate.setParsed(true);
         newTemplate.setDecoded(true);
         
-        pctx.getReceiver()
+        mctx.getReceiver()
             .getInstanceVariables()
             .setInstanceVariable(name, new RubyAsn1Template(runtime, newTemplate));
     }
     
-    private static boolean tryMatchConstructed(ParseContext pctx, int defaultTag) {
-        ThreadContext ctx = pctx.getCtx();
-        ErrorCollector collector = pctx.getCollector();
-        Definition definition = pctx.getDefinition();
+    private static boolean tryMatchConstructed(MatchContext mctx, int defaultTag) {
+        ThreadContext ctx = mctx.getCtx();
+        ErrorCollector collector = mctx.getCollector();
+        Definition definition = mctx.getDefinition();
         Integer tag = definition.getTagAsInteger().orNull();
         String tagging = definition.getTagging().orNull();
-        impl.krypt.asn1.Header h = pctx.getTemplate().getObject().getHeader();
+        Header h = mctx.getHeader();
         
         if (!h.getTag().isConstructed()) {
             if (!definition.isOptional(ctx))
@@ -831,21 +893,19 @@ public class TemplateParser {
         return false;
     }
     
-    private static MatchResult checkOptionalOrDefault(ParseContext pctx, int defaultTag) {
-        ThreadContext ctx = pctx.getCtx();
-        Definition definition = pctx.getDefinition();
-        ErrorCollector collector = pctx.getCollector();
+    private static MatchResult checkOptionalOrDefault(MatchContext mctx, int defaultTag) {
+        ThreadContext ctx = mctx.getCtx();
+        Definition definition = mctx.getDefinition();
+        ErrorCollector collector = mctx.getCollector();
         Integer tag = definition.getTagAsInteger().orNull();
         String tagging = definition.getTagging().orNull();
-        impl.krypt.asn1.Header h = pctx.getTemplate().getObject().getHeader();
-            
         String name = determineName(definition.getName().orNull());
             
         if (!definition.isOptional(ctx))
-            throw collector.addAndReturn(Matcher.tagMismatch(ctx, h, tag, tagging, defaultTag, name));
+            throw collector.addAndReturn(Matcher.tagMismatch(ctx, mctx.getHeader(), tag, tagging, defaultTag, name));
 
         if (definition.hasDefault(ctx)) { 
-            setDefaultValue(pctx, definition);
+            setDefaultValue(mctx);
             return MatchResult.MATCHED_BY_DEFAULT;
         }
         return MatchResult.NO_MATCH;
@@ -861,6 +921,7 @@ public class TemplateParser {
             .getInstanceVariables()
             .setInstanceVariable(name, new RubyAsn1Template(runtime, template));
         template.setParsed(true);
+        template.setDecoded(false);
     }
     
 }
