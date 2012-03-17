@@ -4,38 +4,28 @@ require 'stringio'
 require 'pp'
 require 'base64'
 
-class A
+A = Class.new do
   include Krypt::ASN1::Template::Sequence
-
-  asn1_boolean :truth
-  asn1_integer :number, tag: 5, tagging: :IMPLICIT
+  asn1_integer :a
 end
 
-class Tester
+B = Class.new do
   include Krypt::ASN1::Template::Sequence
-
-  asn1_integer :version, tag: 0, tagging: :EXPLICIT
-  asn1_integer :def, default: 42
-  asn1_template :member, A, tag: 7, tagging: :EXPLICIT
-  asn1_printable_string :text
-
-  def dump
-    puts "Version: #{version}"
-    puts "Text: #{text}"
-    puts "Member: #{member}"
-    puts "Member#truth: #{member.truth}"
-    puts "Member#number: #{member.number}"
-  end
+  asn1_boolean :a
 end
 
+C = Class.new do
+  include Krypt::ASN1::Template::Choice
+  asn1_template B, tag: 1, tagging: :EXPLICIT
+end
 
-t = Tester.parse_der("\x30\x12\x80\x03\x02\x01\x01\xA7\x08\x30\x06\x01\x01\xFF\x85\x01\x03\x13\x01a")
-pp t
-puts t.version
-puts t.text
-puts t.def
-m = t.member
-p m
-puts m.truth
-t.dump
-pp t
+D = Class.new do
+  include Krypt::ASN1::Template::Sequence
+  asn1_template :b, C, tag: 2, tagging: :EXPLICIT
+end
+
+asn1 = D.parse_der "\x30\x09\xA2\x07\xA1\x05\x30\x03\x01\x01\xFF"
+
+p asn1.b.value.a
+
+

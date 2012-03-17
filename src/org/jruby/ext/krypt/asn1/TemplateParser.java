@@ -157,7 +157,8 @@ public class TemplateParser {
         }
         public MatchContext createTemporary(Definition d) {
             MatchContext tmp = new MatchContext(inner);
-            tmp.setDefinition(d);
+            tmp.definition = d;
+            tmp.header = header;
             return tmp;
         }
     }
@@ -804,13 +805,15 @@ public class TemplateParser {
             RubyArray layout = definition.getLayout()
                                .orCollectAndThrow(Errors.newASN1Error(runtime, "Constructive type misses 'layout' definition"), collector);
             int matchedIndex = definition.getMatchedIndex();
-            String tagging = enforceExplicitTagging(runtime, definition, collector);
             InstanceVariables ivs = recv.getInstanceVariables();
             
             HashAdapter matchedDef = new HashAdapter((RubyHash) layout.get(matchedIndex));
-            HashAdapter matchedOpts = tagging != null ? definition.getOptions() : matchedDef.getHash(RubyTemplate.OPTIONS);
+            HashAdapter matchedOpts = matchedDef.getHash(RubyTemplate.OPTIONS);
             HashAdapter oldDef = definition.getDefinition();
             HashAdapter oldOptions = definition.getOptions();
+            
+            if (enforceExplicitTagging(runtime, definition, collector) != null)
+                template = nextTemplate(new ByteArrayInputStream(template.getObject().getValue()));
             
             template.setDefinition(matchedDef);
             template.setOptions(matchedOpts);
