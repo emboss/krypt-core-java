@@ -93,6 +93,7 @@ public class RubyTemplate {
         }
         
         public Asn1Template getTemplate() { return this.template; }
+        protected void setTemplate(Asn1Template template) { this.template = template; }
         
         @JRubyMethod
         public IRubyObject initialize(ThreadContext ctx, final Block block) {
@@ -113,15 +114,23 @@ public class RubyTemplate {
             return this;    
         }
         
+        
         @JRubyMethod
         public IRubyObject get_callback(ThreadContext ctx, IRubyObject ivname) {
-            String name = ivname.asJavaString();
+            String name = ivname.asJavaString().substring(1);
+            if (name.equals("tag") || name.equals("type")) {
+                ensureParsedAndDecoded(ctx, "value");
+                return getInstanceVariable(name);
+            }
             return ensureParsedAndDecoded(ctx, name);
         }
         
         @JRubyMethod
         public IRubyObject set_callback(ThreadContext ctx, IRubyObject ivname, IRubyObject value) {
             String name = ivname.asJavaString().substring(1);
+            if (name.equals("tag") || name.equals("type")) {
+                return setInstanceVariable(name, value);
+            }
             RubyAsn1Template container = (RubyAsn1Template) getInstanceVariable(name);
             if (container == null) {
                 Asn1Template t = new Asn1Template(null, null, null);
@@ -176,8 +185,7 @@ public class RubyTemplate {
                     parse(ctx, this, template, s, collector);
                     collector.clear();
                 }
-                /* ivname has a leading @ */
-                RubyAsn1Template v = (RubyAsn1Template) getInstanceVariable(ivname.substring(1));
+                RubyAsn1Template v = (RubyAsn1Template) getInstanceVariable(ivname);
                 if (v == null)
                     return ctx.getRuntime().getNil();
                 Asn1Template valueTemplate = v.getTemplate();
@@ -199,8 +207,6 @@ public class RubyTemplate {
         }
         
         private static void parse(ThreadContext ctx, IRubyObject recv, Asn1Template template, ParseStrategy s, ErrorCollector collector) {
-            if (template.isParsed())
-                return;
             Definition d = new Definition(template.getDefinition(), template.getOptions());
             ParseContext parseCtx = new ParseContext(ctx, recv, template, d, collector);
             if (!s.match(parseCtx).isSuccess())
@@ -209,8 +215,6 @@ public class RubyTemplate {
         }
         
         private static void decode(ThreadContext ctx, IRubyObject recv, Asn1Template template, ParseStrategy s, ErrorCollector collector) {
-            if (template.isDecoded())
-                return;
             Definition d = new Definition(template.getDefinition(), template.getOptions());
             s.decode(new ParseContext(ctx, recv, template, d, collector));
         }
@@ -233,6 +237,7 @@ public class RubyTemplate {
         private boolean isParsed;
         private boolean isDecoded;
         private boolean isModified;
+        private int matchedLayout;
 
         public Asn1Object getObject() { return this.object; }
         public void setObject(Asn1Object object) { this.object = object; }
@@ -248,6 +253,8 @@ public class RubyTemplate {
         public void setDecoded(boolean decoded) { this.isDecoded = decoded; }
         public boolean isModified() { return this.isModified; }
         public void setModified(boolean modified) { this.isModified = true; }
+        public int getMatchedLayoutIndex() { return this.matchedLayout; }
+        public void setMatchedLayoutIndex(int matchedIndex) { this.matchedLayout = matchedIndex; }
         
         protected <T> T accept(ThreadContext ctx, CodecVisitor<T> visitor) {
             IRubyObject codec = ((IRubyObject) definition.get(CODEC));
@@ -364,6 +371,7 @@ public class RubyTemplate {
     protected static class Definition {
         private final HashAdapter definition;
         private final HashAdapter options;
+        private Integer matchIndex;
         
         public Definition(HashAdapter definition, HashAdapter options) {
             this.definition = definition;
@@ -377,11 +385,19 @@ public class RubyTemplate {
         public Optional<Integer> getTypeAsInteger() { return new Optional<Integer>(definition.getIntegerFixnum(TYPE)); }
         public Optional<RubyArray> getLayout() { return new Optional<RubyArray>(definition.getArray(LAYOUT)); }
         public Optional<Integer> getMinSize() { return new Optional<Integer>(definition.getIntegerFixnum(MIN_SIZE)); }
+        public Integer getMatchedIndex() { return matchIndex; }
+        public void setMatchedIndex(Integer idx) { this.matchIndex = idx; }
         
         public Optional<RubyClass> getTypeAsClass(ThreadContext ctx) { 
             IRubyObject type = definition.getObject(ctx, TYPE);
             if (type == null) return new Optional<RubyClass>(null);
             return new Optional<RubyClass>((RubyClass) type);
+        }
+        
+        public Optional<IRubyObject> getTypeAsObject(ThreadContext ctx) {
+            IRubyObject type = definition.getObject(ctx, TYPE);
+            if (type == null) return new Optional<IRubyObject>(ctx.getRuntime().getNil());
+            return new Optional<IRubyObject>(type);
         }
         
         public boolean isOptional(ThreadContext ctx) { 
@@ -392,9 +408,16 @@ public class RubyTemplate {
             return hasDefault(ctx);
         }
         
-        public Optional<Integer> getTag() {
+        public Optional<Integer> getTagAsInteger() {
             if (options == null) return new Optional<Integer>(null);
             return new Optional<Integer>(options.getIntegerFixnum(TAG));
+        }
+        
+        public Optional<IRubyObject> getTagAsObject(ThreadContext ctx) {
+            if (options == null) return new Optional<IRubyObject>(ctx.getRuntime().getNil());
+            IRubyObject tag = options.getObject(ctx, TAG);
+            if (tag == null) return new Optional<IRubyObject>(ctx.getRuntime().getNil());
+            return new Optional<IRubyObject>(tag);
         }
         
         public Optional<String> getTagging() {
