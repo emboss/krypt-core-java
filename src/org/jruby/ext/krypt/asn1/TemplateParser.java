@@ -106,7 +106,6 @@ public class TemplateParser {
         public ThreadContext getCtx();
         public IRubyObject getReceiver();
         public Definition getDefinition();
-        public void setDefinition(Definition d);
     }
     
     protected static class ParseContext implements AbstractParseContext {
@@ -114,7 +113,7 @@ public class TemplateParser {
         private final IRubyObject recv;
         private final Asn1Template template;
         private final ErrorCollector collector;
-        private Definition definition;
+        private final Definition definition;
         
         public ParseContext(ThreadContext ctx, IRubyObject recv, Asn1Template template, Definition definition, ErrorCollector collector) {
             this.ctx = ctx;
@@ -128,7 +127,6 @@ public class TemplateParser {
         @Override public ThreadContext getCtx() { return ctx; }
         @Override public IRubyObject getReceiver() { return recv; }
         @Override public Definition getDefinition() { return definition; }
-        @Override public void setDefinition(Definition d) { this.definition = d; }
         public Asn1Template getTemplate() { return template; }
         public MatchContext asMatchContext() {
             return new MatchContext(this);
@@ -150,7 +148,7 @@ public class TemplateParser {
         @Override public ThreadContext getCtx() { return inner.getCtx(); }
         @Override public IRubyObject getReceiver() { return inner.getReceiver(); }
         @Override public Definition getDefinition() { return definition; }
-        @Override public void setDefinition(Definition d) { this.definition = d; }
+        public void setDefinition(Definition d) { this.definition = d; }
         public Header getHeader() { return header; }
         public void nextHeader() { 
             Asn1Object object = inner.getTemplate().getObject();
