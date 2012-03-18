@@ -116,7 +116,7 @@ public class RubyTemplate {
             return this;    
         }
         
-        @JRubyMethod
+        @JRubyMethod(name={"_get_callback"})
         public IRubyObject get_callback(ThreadContext ctx, IRubyObject ivname) {
             String name = ivname.asJavaString().substring(1);
             if (name.equals("tag") || name.equals("type")) {
@@ -126,7 +126,7 @@ public class RubyTemplate {
             return ensureParsedAndDecoded(ctx, name);
         }
         
-        @JRubyMethod
+        @JRubyMethod(name={"_set_callback"})
         public IRubyObject set_callback(ThreadContext ctx, IRubyObject ivname, IRubyObject value) {
             String name = ivname.asJavaString().substring(1);
             if (name.equals("tag") || name.equals("type")) {
@@ -170,7 +170,7 @@ public class RubyTemplate {
                                                                   Streams.toDer(other).asString().getBytes()));
         }
         
-        @JRubyMethod(meta=true)
+        @JRubyMethod(meta=true, name={"_mod_included_callback"})
         public static IRubyObject mod_included_callback(ThreadContext ctx, IRubyObject recv, IRubyObject base) {
             RubyClass baseClass = (RubyClass)base;
             baseClass.setAllocator(ALLOCATOR);
