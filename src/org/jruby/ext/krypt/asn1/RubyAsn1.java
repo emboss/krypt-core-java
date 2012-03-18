@@ -157,6 +157,36 @@ public class RubyAsn1 {
         public IRubyObject getValue() { return value; }
     }
     
+    public static int compareSetOfOrder(Ruby runtime, byte[] b1, byte[] b2) {
+        Header h1 = PARSER.next(new ByteArrayInputStream(b1));
+        Header h2 = PARSER.next(new ByteArrayInputStream(b2));
+        if (h1 == null || h2 == null) throw Errors.newASN1Error(runtime, "Error while comparing values");
+
+        Tag tag1 = h1.getTag();
+        Tag tag2 = h2.getTag();
+        int t1 = tag1.getTag();
+        int t2 = tag2.getTag();
+        if (t1 == Asn1Tags.END_OF_CONTENTS && tag1.getTagClass().equals(TagClass.UNIVERSAL))
+            return 1;
+        if (t2 == Asn1Tags.END_OF_CONTENTS && tag2.getTagClass().equals(TagClass.UNIVERSAL))
+            return -1;
+        if (t1 < t2)
+            return -1;
+        if (t1 > t2)
+            return 1;
+
+        int l1 = b1.length, l2 = b2.length, min = l1 < l2 ? l1 : l2;
+
+        for (int i=0; i < min; ++i) {
+            if (b1[i] != b2[i]) {
+                return (b1[i] & 0xff) < (b2[i] & 0xff) ? -1 : 1; 
+            }
+        }
+
+        if (l1 == l2) return 0;
+        return l1 < l2 ? -1 : 1;
+    }
+    
     static Asn1Codec codecFor(int tag, TagClass tagClass)
     {
         Asn1Codec codec = null;
@@ -481,41 +511,11 @@ public class RubyAsn1 {
         @JRubyMethod(name={"<=>"})
         public IRubyObject compare(ThreadContext ctx, IRubyObject other) {
             Ruby runtime = ctx.getRuntime();
-            if (!(other instanceof Asn1Data))
-                throw Errors.newASN1Error(runtime, "ASN1Data is only comparable among other ASN1Data");
-            Asn1Data data = (Asn1Data)other;
-            Tag tag1 = object.getHeader().getTag();
-            Tag tag2 = data.object.getHeader().getTag();
-            int t1 = tag1.getTag();
-            int t2 = tag2.getTag();
-            if (t1 == Asn1Tags.END_OF_CONTENTS && tag1.getTagClass().equals(TagClass.UNIVERSAL))
-                return RubyNumeric.int2fix(runtime, 1);
-            if (t2 == Asn1Tags.END_OF_CONTENTS && tag2.getTagClass().equals(TagClass.UNIVERSAL))
-                return RubyNumeric.int2fix(runtime, -1);
-            if (t1 < t2)
-                return RubyNumeric.int2fix(runtime, -1);
-            if (t1 > t2)
-                return RubyNumeric.int2fix(runtime, 1);
-            
-            return compareSetOfOrder(runtime, to_der(ctx), data.to_der(ctx));
-        }
-        
-        private IRubyObject compareSetOfOrder(Ruby runtime, IRubyObject a, IRubyObject b) {
-            byte[] b1 = a.asString().getBytes();
-            byte[] b2 = b.asString().getBytes();
-            
-            int l1 = b1.length, l2 = b2.length, min = l1 < l2 ? l1 : l2;
-            
-            for (int i=0; i < min; ++i) {
-                if (b1[i] != b2[i]) {
-                    return (b1[i] & 0xff) < (b2[i] & 0xff) ? RubyNumeric.int2fix(runtime, -1) : 
-                                                             RubyNumeric.int2fix(runtime, 1); 
-                }
-            }
-            
-            if (l1 == l2) return RubyNumeric.int2fix(runtime, 0);
-            return l1 < l2 ? RubyNumeric.int2fix(runtime, -1) :
-                             RubyNumeric.int2fix(runtime, 1);
+            if (!other.respondsTo("to_der")) return runtime.getNil();
+            return RubyNumeric.int2fix(runtime, 
+                                       compareSetOfOrder(runtime, 
+                                                         to_der(ctx).asString().getBytes(), 
+                                                         Streams.toDer(other).asString().getBytes()));
         }
         
         private void handleExplicitTagging(ThreadContext ctx, String newTc) {

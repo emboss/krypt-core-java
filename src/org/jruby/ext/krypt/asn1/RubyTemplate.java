@@ -41,11 +41,13 @@ import org.jruby.RubyArray;
 import org.jruby.RubyClass;
 import org.jruby.RubyHash;
 import org.jruby.RubyModule;
+import org.jruby.RubyNumeric;
 import org.jruby.RubyObject;
 import org.jruby.anno.JRubyMethod;
 import org.jruby.exceptions.RaiseException;
 import org.jruby.ext.krypt.Errors;
 import org.jruby.ext.krypt.HashAdapter;
+import org.jruby.ext.krypt.Streams;
 import org.jruby.ext.krypt.asn1.TemplateParser.CodecStrategyVisitor;
 import org.jruby.ext.krypt.asn1.TemplateParser.ParseContext;
 import org.jruby.ext.krypt.asn1.TemplateParser.ParseStrategy;
@@ -156,6 +158,16 @@ public class RubyTemplate {
             } catch (IOException ex) {
                 throw Errors.newASN1Error(ctx.getRuntime(), ex.getMessage());
             }
+        }
+        
+        @JRubyMethod(name={"<=>"})
+        public IRubyObject compare(ThreadContext ctx, IRubyObject other) {
+            Ruby runtime = ctx.getRuntime();
+            if (!other.respondsTo("to_der")) return runtime.getNil();
+            return RubyNumeric.int2fix(runtime, 
+                                       RubyAsn1.compareSetOfOrder(runtime, 
+                                                                  to_der(ctx).asString().getBytes(), 
+                                                                  Streams.toDer(other).asString().getBytes()));
         }
         
         @JRubyMethod(meta=true)
