@@ -478,16 +478,6 @@ public class RubyAsn1 {
             return rt.newString(new ByteList(baos.toByteArray(), false));
         }
         
-        @JRubyMethod(name={"=="})
-        public IRubyObject equals(ThreadContext ctx, IRubyObject other) {
-            Ruby runtime = ctx.getRuntime();
-            if (!(other instanceof Asn1Data))
-                return RubyBoolean.newBoolean(runtime, false);
-            IRubyObject der1 = to_der(ctx);
-            IRubyObject der2 = ((Asn1Data) other).to_der(ctx);
-            return der1.callMethod(ctx, "==", der2);
-        }
-        
         @JRubyMethod(name={"<=>"})
         public IRubyObject compare(ThreadContext ctx, IRubyObject other) {
             Ruby runtime = ctx.getRuntime();
@@ -970,6 +960,7 @@ public class RubyAsn1 {
         mASN1.defineAnnotatedMethods(RubyAsn1.class);
         
         cASN1Data = mASN1.defineClassUnder("ASN1Data", runtime.getObject(), Asn1Data.ALLOCATOR);
+        cASN1Data.includeModule(runtime.getModule("Comparable"));
         cASN1Data.defineAnnotatedMethods(Asn1Data.class);
 
         cASN1Primitive = mASN1.defineClassUnder("Primitive", cASN1Data, Asn1Primitive.PRIMITIVE_ALLOCATOR);
