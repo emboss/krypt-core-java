@@ -30,6 +30,7 @@
 package org.jruby.ext.krypt.asn1;
 
 import impl.krypt.asn1.Asn1Object;
+import impl.krypt.asn1.Header;
 import java.io.ByteArrayOutputStream;
 import java.io.IOException;
 import java.util.ArrayList;
@@ -149,7 +150,8 @@ public class RubyTemplate {
         public IRubyObject to_der(ThreadContext ctx) {
             try {
                 Asn1Object object = template.getObject();
-                if (object != null && object.getValue() != null) {
+                Header h = object.getHeader();
+                if (object != null && (object.getValue() != null || h.getLength().getLength() == 0)) {
                     ByteArrayOutputStream baos = new ByteArrayOutputStream();
                     object.encodeTo(baos);
                     return ctx.getRuntime().newString(new ByteList(baos.toByteArray(), false));
