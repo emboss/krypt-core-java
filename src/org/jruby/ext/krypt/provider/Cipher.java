@@ -29,17 +29,20 @@
  */
 package org.jruby.ext.krypt.provider;
 
-import java.security.NoSuchAlgorithmException;
-import javax.crypto.NoSuchPaddingException;
+import java.security.InvalidKeyException;
+import java.security.Key;
+import javax.crypto.BadPaddingException;
+import javax.crypto.IllegalBlockSizeException;
+import javax.crypto.ShortBufferException;
 
-/**
- * 
- * @author <a href="mailto:Martin.Bosslet@googlemail.com">Martin Bosslet</a>
- */
-public interface KryptProvider {
+
+public interface Cipher {
     
-    public Digest newDigestByName(String name) throws NoSuchAlgorithmException;
-    public Digest newDigestByOid(String oid) throws NoSuchAlgorithmException;
-    public Cipher newCipherByName(String name) throws NoSuchAlgorithmException, NoSuchPaddingException;
-    public Cipher newCipherByOid(String oid) throws NoSuchAlgorithmException, NoSuchPaddingException;
+   public byte [] doFinal() throws IllegalBlockSizeException, BadPaddingException;
+   public byte [] doFinal(byte[] input) throws IllegalBlockSizeException, BadPaddingException; 
+   public void init(int opmode, Key key) throws InvalidKeyException;
+   public int update(byte[] input, int inputOffset, int inputLen, byte[] output, int outputOffset) throws ShortBufferException; 
+   public String getName();
+  
 }
+
