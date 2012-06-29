@@ -76,9 +76,10 @@ public class Hex {
         if (bytes == null) throw new NullPointerException("bytes");
         if (bytes.length % 2 != 0) throw new IllegalArgumentException("Hex data length must be a multiple of 2");
 
-        byte[] ret = new byte[bytes.length / 2];
+        int retlen = bytes.length / 2;
+        byte[] ret = new byte[retlen];
 
-        for (int i=0; i<bytes.length; i++) {
+        for (int i=0; i < retlen; i++) {
 	    byte c = bytes[i*2];
 	    byte d = bytes[i*2+1];
 	    if (c < 0 || d < 0 ||

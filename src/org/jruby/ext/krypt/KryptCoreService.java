@@ -34,6 +34,7 @@ import org.jruby.RubyClass;
 import org.jruby.RubyModule;
 import org.jruby.ext.krypt.asn1.RubyAsn1;
 import org.jruby.ext.krypt.asn1.RubyPem;
+import org.jruby.ext.krypt.codec.RubyHex;
 import org.jruby.ext.krypt.digest.RubyDigest;
 
 /**
@@ -48,6 +49,7 @@ public class KryptCoreService {
         RubyClass kryptError = krypt.defineClassUnder("KryptError", standardError, standardError.getAllocator());
         RubyAsn1.createAsn1(runtime, krypt, kryptError);
         RubyPem.createPem(runtime, krypt, kryptError);
+        RubyHex.createHex(runtime, krypt, kryptError);
         RubyDigest.createDigest(runtime, krypt, kryptError);
     }    
 }
