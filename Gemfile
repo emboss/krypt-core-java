@@ -1,4 +1,4 @@
-source :rubygems
+source 'https://rubygems.org'
 
 gem 'krypt', :path => File.expand_path('../krypt', File.dirname(__FILE__))
 gem 'krypt-provider-jce', :path => File.expand_path('../krypt-provider-jce', File.dirname(__FILE__))
