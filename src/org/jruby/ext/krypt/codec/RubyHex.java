@@ -27,49 +27,52 @@
 * the provisions above, a recipient may use your version of this file under
 * the terms of any one of the CPL, the GPL or the LGPL.
  */
-package org.jruby.ext.krypt;
+package org.jruby.ext.krypt.codec;
 
 import org.jruby.Ruby;
 import org.jruby.RubyClass;
-import org.jruby.exceptions.RaiseException;
+import org.jruby.RubyModule;
+import org.jruby.anno.JRubyMethod;
+import org.jruby.ext.krypt.Errors;
+import org.jruby.ext.krypt.Hex;
+import org.jruby.runtime.ThreadContext;
+import org.jruby.runtime.builtin.IRubyObject;
+import org.jruby.util.ByteList;
 
 /**
  * 
  * @author <a href="mailto:Martin.Bosslet@googlemail.com">Martin Bosslet</a>
  */
-public class Errors {
-   
-    private Errors() { }
+public class RubyHex {
     
-    public static RaiseException newParseError(Ruby rt, String message) {
-        return newError(rt, "Krypt::ASN1::ParseError", message);
+    private RubyHex() {}
+    
+    @JRubyMethod(meta = true)
+    public static IRubyObject encode(ThreadContext ctx, IRubyObject recv, IRubyObject data) {
+        try {
+            byte[] bytes = data.convertToString().getBytes();
+            byte[] encoded = Hex.encode(bytes);
+            return ctx.getRuntime().newString(new ByteList(encoded, false));
+        } catch (RuntimeException ex) {
+            throw Errors.newHexError(ctx.getRuntime(), ex.getMessage());
+        }
     }
     
-    public static RaiseException newSerializeError(Ruby rt, String message) {
-        return newError(rt, "Krypt::ASN1::SerializeError", message);
+    @JRubyMethod(meta = true)
+    public static IRubyObject decode(ThreadContext ctx, IRubyObject recv, IRubyObject data) {
+        try {
+            byte[] bytes = data.convertToString().getBytes();
+            byte[] decoded = Hex.decode(bytes);
+            return ctx.getRuntime().newString(new ByteList(decoded, false));
+        } catch (RuntimeException ex) {
+            throw Errors.newHexError(ctx.getRuntime(), ex.getMessage());
+        }
     }
     
-    public static RaiseException newASN1Error(Ruby rt, String message) {
-        return newError(rt, "Krypt::ASN1::ASN1Error", message);
+    public static void createHex(Ruby runtime, RubyModule krypt, RubyClass kryptError) {
+        RubyModule mHex = runtime.defineModuleUnder("Hex", krypt);
+        mHex.defineClassUnder("HexError", kryptError, kryptError.getAllocator());
+        mHex.defineAnnotatedMethods(RubyHex.class);
     }
-    
-    public static RaiseException newPEMError(Ruby rt, String message) {
-        return newError(rt, "Krypt::PEM::PEMError", message);
-    }
-    
-    public static RaiseException newHexError(Ruby rt, String message) {
-        return newError(rt, "Krypt::Hex::HexError", message);
-    }
-    
-    public static RaiseException newDigestError(Ruby rt, String message) {
-        return newError(rt, "Krypt::Digest::DigestError", message);
-    }
-    
-    public static RaiseException newError(Ruby rt, String path, String message) {
-        return new RaiseException(rt, getClassFromPath(rt, path), message, true);
-    }
-    
-    public static RubyClass getClassFromPath(Ruby rt, String path) {
-        return (RubyClass)rt.getClassFromPath(path);
-    }
+        
 }
