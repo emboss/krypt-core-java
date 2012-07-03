@@ -52,7 +52,7 @@ public class RubyBase64 {
     public static IRubyObject encode(ThreadContext ctx, IRubyObject recv, IRubyObject data) {
         try {
             byte[] bytes = data.convertToString().getBytes();
-            byte[] encoded = Base64.encode(bytes, 4);
+            byte[] encoded = Base64.encode(bytes, -1);
             return ctx.getRuntime().newString(new ByteList(encoded, false));
         } catch(IOException ex){
             throw Errors.newHexError(ctx.getRuntime(), ex.getMessage());        
@@ -61,6 +61,22 @@ public class RubyBase64 {
             throw Errors.newHexError(ctx.getRuntime(), ex.getMessage());
         }
     }
+    
+    @JRubyMethod(meta = true)
+    public static IRubyObject encode(ThreadContext ctx, IRubyObject recv, IRubyObject data, IRubyObject cols) {
+        try {
+            int c= (int) cols.convertToInteger().getLongValue();
+            byte[] bytes = data.convertToString().getBytes();
+            byte[] encoded = Base64.encode(bytes, c);
+            return ctx.getRuntime().newString(new ByteList(encoded, false));
+        } catch(IOException ex){
+            throw Errors.newHexError(ctx.getRuntime(), ex.getMessage());        
+        } 
+        catch (RuntimeException ex) {
+            throw Errors.newHexError(ctx.getRuntime(), ex.getMessage());
+        }
+    }
+    
     
     @JRubyMethod(meta = true)
     public static IRubyObject decode(ThreadContext ctx, IRubyObject recv, IRubyObject data) {
