@@ -6,6 +6,7 @@ pkg
 build.properties
 build_lib/jruby.jar
 build
+lib/kryptcore.jar
 coverage.ec
 dist
 doc
