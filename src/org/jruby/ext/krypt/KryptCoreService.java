@@ -37,7 +37,7 @@ import org.jruby.ext.krypt.asn1.RubyPem;
 import org.jruby.ext.krypt.codec.RubyBase64;
 import org.jruby.ext.krypt.codec.RubyHex;
 import org.jruby.ext.krypt.digest.RubyDigest;
-import org.jruby.ext.openssl.Cipher;
+import org.jruby.krypt.crypto.Cipher;
 
 /**
  * 
