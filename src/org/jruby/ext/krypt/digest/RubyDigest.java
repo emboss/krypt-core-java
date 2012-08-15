@@ -126,6 +126,10 @@ public class RubyDigest extends RubyObject {
         return ctx.getRuntime().newString(this.digest.getName());
     }
     
+    public String getName(){
+        return digest.getName();
+    }
+    
     @JRubyMethod
     public IRubyObject digest_length(ThreadContext ctx) {
         return RubyNumeric.int2fix(ctx.getRuntime(), this.digest.getDigestLength());

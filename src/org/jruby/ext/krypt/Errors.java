@@ -73,6 +73,10 @@ public class Errors {
         return newError(rt, "Krypt::Cipher::CipherError", message);
     }
     
+    public static RaiseException newSignatureError(Ruby rt, String message) {
+        return newError(rt, "Krypt::SignatureError::DSAError", message);
+    }
+    
     public static RaiseException newError(Ruby rt, String path, String message) {
         return new RaiseException(rt, getClassFromPath(rt, path), message, true);
     }

@@ -37,6 +37,7 @@ import org.jruby.ext.krypt.asn1.RubyPem;
 import org.jruby.ext.krypt.codec.RubyBase64;
 import org.jruby.ext.krypt.codec.RubyHex;
 import org.jruby.ext.krypt.digest.RubyDigest;
+import org.jruby.ext.krypt.signature.RubySignature;
 import org.jruby.krypt.crypto.Cipher;
 
 /**
@@ -55,5 +56,6 @@ public class KryptCoreService {
         RubyBase64.createBase64(runtime, krypt, kryptError);
         RubyDigest.createDigest(runtime, krypt, kryptError);
         Cipher.createCipher(runtime, krypt);
+        RubySignature.createSignature(runtime, krypt, kryptError );
     }    
 }
