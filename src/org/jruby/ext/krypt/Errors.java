@@ -77,6 +77,10 @@ public class Errors {
         return newError(rt, "Krypt::SignatureError::DSAError", message);
     }
     
+    public static RaiseException newKeyError(Ruby rt, String message) {
+        return newError(rt, "Krypt::Key::KeyError", message);
+    }
+    
     public static RaiseException newError(Ruby rt, String path, String message) {
         return new RaiseException(rt, getClassFromPath(rt, path), message, true);
     }

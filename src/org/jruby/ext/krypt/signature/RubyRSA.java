@@ -2,14 +2,13 @@
 package org.jruby.ext.krypt.signature;
 
 import java.security.InvalidKeyException;
-import java.security.KeyPair;
-import java.security.KeyPairGenerator;
+import java.security.KeyFactory;
 import java.security.NoSuchAlgorithmException;
-import java.security.PrivateKey;
-import java.security.PublicKey;
-import java.security.SecureRandom;
 import java.security.Signature;
 import java.security.SignatureException;
+import java.security.spec.EncodedKeySpec;
+import java.security.spec.InvalidKeySpecException;
+import java.security.spec.PKCS8EncodedKeySpec;
 import org.jruby.Ruby;
 import org.jruby.RubyBoolean;
 import org.jruby.RubyClass;
@@ -20,6 +19,8 @@ import org.jruby.RubyString;
 import org.jruby.anno.JRubyMethod;
 import org.jruby.ext.krypt.Errors;
 import org.jruby.ext.krypt.digest.RubyDigest;
+import org.jruby.ext.krypt.key.RubyRSAPrivateKey;
+import org.jruby.ext.krypt.key.RubyRSAPublicKey;
 import org.jruby.runtime.ObjectAllocator;
 import org.jruby.runtime.ThreadContext;
 import org.jruby.runtime.builtin.IRubyObject;
@@ -31,7 +32,6 @@ import org.jruby.runtime.builtin.IRubyObject;
 public class RubyRSA extends RubyObject{
     
     private Signature sig;
-    private KeyPair pair;
     private String name="";
     
     private static ObjectAllocator ALLOCATOR = new ObjectAllocator() {
@@ -46,6 +46,7 @@ public class RubyRSA extends RubyObject{
     }
     
     public static void createRSA(Ruby runtime, RubyModule mSig, RubyClass sigError) {
+        
         RubyClass cRSA = mSig.defineClassUnder("RSA", null, ALLOCATOR );;
         RubyClass rsaErr=mSig.defineClassUnder("RSAError", sigError, sigError.getAllocator());
         cRSA.defineAnnotatedMethods(RubyRSA.class);        
@@ -53,7 +54,7 @@ public class RubyRSA extends RubyObject{
     
 
     @JRubyMethod
-    public RubyString getName(ThreadContext ctx) {
+    public RubyString name(ThreadContext ctx) {
         return RubyString.newString(ctx.getRuntime(), sig.getAlgorithm());
     }    
     
@@ -64,25 +65,8 @@ public class RubyRSA extends RubyObject{
         if (!(rbDigest instanceof RubyDigest))  getRuntime().newArgumentError(" digest object expected");
         RubyDigest dig = (RubyDigest) rbDigest;
         String digName=dig.getName();
-        
-        /* 
-         * STUB!!!
-         * Generate a key pair
-         * This need to be modularized to RubyKey Internally 
-         * and Amends for Keystore 
-         */
- 
-        KeyPairGenerator keyGen = KeyPairGenerator.getInstance("RSA");
-        SecureRandom random = SecureRandom.getInstance("SHA1PRNG");
-        keyGen.initialize(1024, random);
-        pair = keyGen.generateKeyPair();
-
-        PublicKey pub=pair.getPublic();
-        PrivateKey priv= pair.getPrivate(); 
         name=digName+"withRSA";
         sig = Signature.getInstance(name); 
-        sig.initSign(priv);
-        
         return this;
     }
     
@@ -105,18 +89,34 @@ public class RubyRSA extends RubyObject{
         }
         return this;
     }
+
     
-    public void checkVerify(Ruby rt){
-        try {
-            sig.initVerify(pair.getPublic());
-        } catch (InvalidKeyException ex) {
-           Errors.newSignatureError(rt, " could not initialize verification");
-        }
+    @JRubyMethod
+    public IRubyObject initv(ThreadContext ctx, IRubyObject key) throws InvalidKeyException, NoSuchAlgorithmException, InvalidKeySpecException{
+        if(key instanceof RubyRSAPublicKey){
+          sig.initVerify(((RubyRSAPublicKey)key).getKey());
+        } else{
+        KeyFactory fac = KeyFactory.getInstance("RSA");
+        EncodedKeySpec pubKeySpec = new PKCS8EncodedKeySpec(key.asJavaString().getBytes());
+        sig.initVerify(fac.generatePublic(pubKeySpec));
+        } 
+        return this; 
+    }
+    
+    @JRubyMethod
+    public IRubyObject inits(ThreadContext ctx, IRubyObject key) throws InvalidKeyException, NoSuchAlgorithmException, InvalidKeySpecException{
+        if(key instanceof RubyRSAPrivateKey){
+          sig.initSign(((RubyRSAPrivateKey)key).getKey());
+        } else{
+        KeyFactory fac = KeyFactory.getInstance("RSA");
+        EncodedKeySpec privKeySpec = new PKCS8EncodedKeySpec(key.asJavaString().getBytes());
+        sig.initSign(fac.generatePrivate(privKeySpec));
+        } 
+        return this; 
     }
     
     @JRubyMethod
     public RubyBoolean verify(ThreadContext ctx, IRubyObject sbytes){
-        checkVerify(ctx.getRuntime());
         try {
             return ((sig.verify(sbytes.asJavaString().getBytes())) ? RubyBoolean.newBoolean(ctx.getRuntime(), true) : RubyBoolean.newBoolean(ctx.getRuntime(), false)) ;
         } catch (SignatureException ex) {

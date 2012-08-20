@@ -17,7 +17,7 @@ public class RubySignature extends RubyObject {
     }
      
     public static void createSignature(Ruby runtime, RubyModule krypt, RubyClass kryptError) {
-        RubyModule mSig = runtime.getOrCreateModule("Signature");
+        RubyModule mSig = krypt.defineModuleUnder("Signature");
         RubyClass sigErr=mSig.defineClassUnder("SignatureError", kryptError, kryptError.getAllocator());
         RubyDSA.createDSA(runtime, mSig, sigErr);
         RubyRSA.createRSA(runtime, mSig, sigErr);
