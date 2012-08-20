@@ -21,5 +21,6 @@ public class RubySignature extends RubyObject {
         RubyClass sigErr=mSig.defineClassUnder("SignatureError", kryptError, kryptError.getAllocator());
         RubyDSA.createDSA(runtime, mSig, sigErr);
         RubyRSA.createRSA(runtime, mSig, sigErr);
+        RubyEC.createEC(runtime, mSig, sigErr);
     }
 }

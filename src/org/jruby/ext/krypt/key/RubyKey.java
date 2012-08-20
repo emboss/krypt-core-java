@@ -23,5 +23,7 @@ public class RubyKey extends RubyObject {
         RubyDSAPublicKey.createKey(runtime, mKey, keyErr);
         RubyRSAPrivateKey.createKey(runtime, mKey, keyErr);
         RubyRSAPublicKey.createKey(runtime, mKey, keyErr);
+        RubyECPrivateKey.createKey(runtime, mKey, keyErr);
+        RubyECPublicKey.createKey(runtime, mKey, keyErr);
     }
 }
