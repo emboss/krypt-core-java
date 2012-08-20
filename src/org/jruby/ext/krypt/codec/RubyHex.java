@@ -27,35 +27,52 @@
 * the provisions above, a recipient may use your version of this file under
 * the terms of any one of the CPL, the GPL or the LGPL.
  */
-package org.jruby.ext.krypt;
+package org.jruby.ext.krypt.codec;
 
 import org.jruby.Ruby;
 import org.jruby.RubyClass;
 import org.jruby.RubyModule;
-import org.jruby.ext.krypt.asn1.RubyAsn1;
-import org.jruby.ext.krypt.asn1.RubyPem;
-import org.jruby.ext.krypt.codec.RubyBase64;
-import org.jruby.ext.krypt.codec.RubyHex;
-import org.jruby.ext.krypt.digest.RubyDigest;
-import org.jruby.ext.krypt.signature.RubySignature;
-import org.jruby.krypt.crypto.Cipher;
+import org.jruby.anno.JRubyMethod;
+import org.jruby.ext.krypt.Errors;
+import org.jruby.ext.krypt.Hex;
+import org.jruby.runtime.ThreadContext;
+import org.jruby.runtime.builtin.IRubyObject;
+import org.jruby.util.ByteList;
 
 /**
  * 
  * @author <a href="mailto:Martin.Bosslet@googlemail.com">Martin Bosslet</a>
  */
-public class KryptCoreService {
+public class RubyHex {
     
-    public static void create(Ruby runtime) {
-        RubyModule krypt = runtime.getOrCreateModule("Krypt");
-        RubyClass standardError = runtime.getClass("StandardError");
-        RubyClass kryptError = krypt.defineClassUnder("KryptError", standardError, standardError.getAllocator());
-        RubyAsn1.createAsn1(runtime, krypt, kryptError);
-        RubyPem.createPem(runtime, krypt, kryptError);
-        RubyHex.createHex(runtime, krypt, kryptError);
-        RubyBase64.createBase64(runtime, krypt, kryptError);
-        RubyDigest.createDigest(runtime, krypt, kryptError);
-        Cipher.createCipher(runtime, krypt);
-        RubySignature.createSignature(runtime, krypt, kryptError );
-    }    
+    private RubyHex() {}
+    
+    @JRubyMethod(meta = true)
+    public static IRubyObject encode(ThreadContext ctx, IRubyObject recv, IRubyObject data) {
+        try {
+            byte[] bytes = data.convertToString().getBytes();
+            byte[] encoded = Hex.encode(bytes);
+            return ctx.getRuntime().newString(new ByteList(encoded, false));
+        } catch (RuntimeException ex) {
+            throw Errors.newHexError(ctx.getRuntime(), ex.getMessage());
+        }
+    }
+    
+    @JRubyMethod(meta = true)
+    public static IRubyObject decode(ThreadContext ctx, IRubyObject recv, IRubyObject data) {
+        try {
+            byte[] bytes = data.convertToString().getBytes();
+            byte[] decoded = Hex.decode(bytes);
+            return ctx.getRuntime().newString(new ByteList(decoded, false));
+        } catch (RuntimeException ex) {
+            throw Errors.newHexError(ctx.getRuntime(), ex.getMessage());
+        }
+    }
+    
+    public static void createHex(Ruby runtime, RubyModule krypt, RubyClass kryptError) {
+        RubyModule mHex = runtime.defineModuleUnder("Hex", krypt);
+        mHex.defineClassUnder("HexError", kryptError, kryptError.getAllocator());
+        mHex.defineAnnotatedMethods(RubyHex.class);
+    }
+        
 }

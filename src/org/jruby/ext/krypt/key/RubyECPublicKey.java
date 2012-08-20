@@ -1,0 +1,67 @@
+package org.jruby.ext.krypt.key;
+
+import java.security.GeneralSecurityException;
+import java.security.KeyFactory;
+import java.security.interfaces.DSAPrivateKey;
+import java.security.interfaces.ECPrivateKey;
+import java.security.interfaces.ECPublicKey;
+import java.security.spec.EncodedKeySpec;
+import java.security.spec.PKCS8EncodedKeySpec;
+import org.jruby.Ruby;
+import org.jruby.RubyClass;
+import org.jruby.RubyModule;
+import org.jruby.RubyObject;
+import org.jruby.RubyString;
+import org.jruby.anno.JRubyMethod;
+import org.jruby.ext.krypt.Errors;
+import org.jruby.runtime.ThreadContext;
+import org.jruby.runtime.builtin.IRubyObject;
+
+/**
+ *
+ * @author Vipul A M <vipulnsward@gmail.com>
+ */
+public class RubyECPublicKey extends RubyObject {
+
+    private ECPublicKey pkey;
+
+    protected RubyECPublicKey(Ruby runtime, RubyClass type) {
+        super(runtime, type);
+    }
+    
+    public static void createKey(Ruby runtime, RubyModule mKey, RubyClass keyError) {
+        RubyModule mPrivKey = mKey.defineModuleUnder("ECPublicKey");
+        mPrivKey.defineAnnotatedMethods(RubyECPublicKey.class);
+    }
+
+    @JRubyMethod
+    public IRubyObject initialize(ThreadContext ctx, IRubyObject keyData) {
+        try {
+            getPublicKeyFromBytes(keyData.asJavaString().getBytes());
+        } catch (GeneralSecurityException ex) {
+            Errors.newKeyError(ctx.getRuntime()," unable to create key from given data");
+        }
+        return this;
+    }
+    
+    @JRubyMethod
+    public IRubyObject encoded(ThreadContext ctx, IRubyObject keyData) {
+        return RubyString.newString(ctx.getRuntime(), pkey.getEncoded());
+    }
+    
+    @JRubyMethod
+    public IRubyObject algorithm(ThreadContext ctx, IRubyObject keyData) {
+        return RubyString.newString(ctx.getRuntime(), pkey.getAlgorithm());
+    }
+    
+    private void getPublicKeyFromBytes(byte[] pubKeyObject) throws GeneralSecurityException {
+        KeyFactory fac = KeyFactory.getInstance("EC");
+        EncodedKeySpec pubKeySpec = new PKCS8EncodedKeySpec(pubKeyObject);
+        pkey= (ECPublicKey) fac.generatePublic(pubKeySpec);
+    }
+    
+    public ECPublicKey getKey(){
+        return pkey;
+    }
+
+}

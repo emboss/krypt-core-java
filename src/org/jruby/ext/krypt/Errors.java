@@ -57,8 +57,28 @@ public class Errors {
         return newError(rt, "Krypt::PEM::PEMError", message);
     }
     
+    public static RaiseException newHexError(Ruby rt, String message) {
+        return newError(rt, "Krypt::Hex::HexError", message);
+    }
+    
+    public static RaiseException newBase64Error(Ruby rt, String message) {
+        return newError(rt, "Krypt::Base64::Base64Error", message);
+    }
+    
     public static RaiseException newDigestError(Ruby rt, String message) {
         return newError(rt, "Krypt::Digest::DigestError", message);
+    }
+    
+    public static RaiseException newCipherError(Ruby rt, String message) {
+        return newError(rt, "Krypt::Cipher::CipherError", message);
+    }
+    
+    public static RaiseException newSignatureError(Ruby rt, String message) {
+        return newError(rt, "Krypt::SignatureError::DSAError", message);
+    }
+    
+    public static RaiseException newKeyError(Ruby rt, String message) {
+        return newError(rt, "Krypt::Key::KeyError", message);
     }
     
     public static RaiseException newError(Ruby rt, String path, String message) {
