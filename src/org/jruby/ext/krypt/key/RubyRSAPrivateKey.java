@@ -2,7 +2,6 @@ package org.jruby.ext.krypt.key;
 
 import java.security.GeneralSecurityException;
 import java.security.KeyFactory;
-import java.security.interfaces.DSAPrivateKey;
 import java.security.interfaces.RSAPrivateKey;
 import java.security.spec.EncodedKeySpec;
 import java.security.spec.PKCS8EncodedKeySpec;
