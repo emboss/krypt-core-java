@@ -52,7 +52,7 @@ public class HashAdapter implements Map {
     @Override public void clear() { inner.clear(); }
     @Override public boolean containsKey(Object key) { return inner.containsKey(key); }
     @Override public boolean containsValue(Object value) { return inner.containsValue(value); }
-    @Override public Set<Entry> entrySet() { return inner.entrySet(); }
+    @Override public Set entrySet() { return inner.entrySet(); }
     @Override public Object get(Object key) { return inner.get(key); }
     @Override public boolean isEmpty() { return inner.isEmpty(); }
     @Override public Set keySet() { return inner.keySet(); }

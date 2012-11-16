@@ -120,19 +120,22 @@ public class RubyTemplate {
         @JRubyMethod(name={"_get_callback"})
         public IRubyObject get_callback(ThreadContext ctx, IRubyObject ivname) {
             String name = ivname.asJavaString().substring(1);
+            return ensureParsedAndDecoded(ctx, name);
+        }
+        
+        @JRubyMethod(name={"_get_callback_choice"})
+        public IRubyObject get_callback_choice(ThreadContext ctx, IRubyObject ivname) {
+            String name = ivname.asJavaString().substring(1);
             if (name.equals("tag") || name.equals("type")) {
                 ensureParsedAndDecoded(ctx, "value");
                 return getInstanceVariable(name);
             }
-            return ensureParsedAndDecoded(ctx, name);
+            return get_callback(ctx, ivname);
         }
         
         @JRubyMethod(name={"_set_callback"})
         public IRubyObject set_callback(ThreadContext ctx, IRubyObject ivname, IRubyObject value) {
             String name = ivname.asJavaString().substring(1);
-            if (name.equals("tag") || name.equals("type")) {
-                return setInstanceVariable(name, value);
-            }
             RubyAsn1Template container = (RubyAsn1Template) getInstanceVariable(name);
             if (container == null) {
                 Asn1Template t = new Asn1Template(null, null, null);
@@ -144,6 +147,15 @@ public class RubyTemplate {
             container.getTemplate().setValue(value);
             template.setModified(true);
             return value;
+        }
+        
+        @JRubyMethod(name={"_set_callback_choice"})
+        public IRubyObject set_callback_choice(ThreadContext ctx, IRubyObject ivname, IRubyObject value) {
+            String name = ivname.asJavaString().substring(1);
+            if (name.equals("tag") || name.equals("type")) {
+                return setInstanceVariable(name, value);
+            }
+            return set_callback(ctx, ivname, value);
         }
         
         @JRubyMethod
