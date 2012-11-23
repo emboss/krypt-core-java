@@ -35,7 +35,8 @@ import org.jruby.RubyModule;
 import org.jruby.ext.krypt.asn1.RubyAsn1;
 import org.jruby.ext.krypt.asn1.RubyPem;
 import org.jruby.ext.krypt.codec.RubyHex;
-import org.jruby.ext.krypt.digest.RubyDigest;
+import org.jruby.ext.krypt.digest.RubyNativeDigest;
+import org.jruby.ext.krypt.provider.RubyNativeProvider;
 
 /**
  * 
@@ -45,11 +46,13 @@ public class KryptCoreService {
     
     public static void create(Ruby runtime) {
         RubyModule krypt = runtime.getOrCreateModule("Krypt");
-        RubyClass standardError = runtime.getClass("StandardError");
-        RubyClass kryptError = krypt.defineClassUnder("KryptError", standardError, standardError.getAllocator());
+        RubyClass kryptError = krypt.getClass("Error");
+        
         RubyAsn1.createAsn1(runtime, krypt, kryptError);
         RubyPem.createPem(runtime, krypt, kryptError);
         RubyHex.createHex(runtime, krypt, kryptError);
-        RubyDigest.createDigest(runtime, krypt, kryptError);
+        
+        RubyNativeDigest.createDigest(runtime, krypt);
+        RubyNativeProvider.createProvider(runtime, krypt);
     }    
 }

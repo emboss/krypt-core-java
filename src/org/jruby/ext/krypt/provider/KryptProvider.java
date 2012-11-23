@@ -37,7 +37,9 @@ import java.security.NoSuchAlgorithmException;
  */
 public interface KryptProvider {
     
-    public Digest newDigestByName(String name) throws NoSuchAlgorithmException;
-    public Digest newDigestByOid(String oid) throws NoSuchAlgorithmException;
+    public String getName();
+    
+    public Digest newDigestByName(String name);
+    public Digest newDigestByOid(String oid);
     
 }

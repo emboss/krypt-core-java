@@ -29,6 +29,9 @@
  */
 package org.jruby.ext.krypt.provider;
 
+import org.jruby.Ruby;
+import org.jruby.RubyModule;
+
 /**
  * 
  * @author <a href="mailto:Martin.Bosslet@googlemail.com">Martin Bosslet</a>
@@ -38,20 +41,17 @@ public class ProviderRegistry {
     private ProviderRegistry() {}
     
     private static final ProviderRegistry INSTANCE = new ProviderRegistry();
+    private RubyModule mProvider;
     
     public static ProviderRegistry getInstance() {
         return INSTANCE;
     }
     
-    private KryptProvider defaultProvider;
-    
-    public synchronized void registerDefault(KryptProvider provider) {
-        if (defaultProvider != null)
-            throw new RuntimeException("Default provider may only be set once");
-        this.defaultProvider = provider;
+    public synchronized void registerProvider(Ruby runtime, KryptProvider provider) {
+        if (mProvider == null) {
+            mProvider = (RubyModule)runtime.getOrCreateModule("Krypt").getConstant("Provider");
+        }
+        mProvider.callMethod("register", runtime.newSymbol(provider.getName()), new RubyNativeProvider(runtime, provider));
     }
     
-    public synchronized KryptProvider getDefaultProvider() {
-        return defaultProvider;
-    } 
 }

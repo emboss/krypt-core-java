@@ -4,5 +4,5 @@ unless defined? JRUBY_VERSION
 end
 
 require 'kryptcore.jar'
-require 'krypt-provider'
+require 'krypt-provider-jce'
 

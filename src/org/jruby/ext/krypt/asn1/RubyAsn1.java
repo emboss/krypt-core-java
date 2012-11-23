@@ -1068,8 +1068,9 @@ public class RubyAsn1 {
         }
         mASN1.setConstant("UNIVERSAL_TAG_NAME",runtime.newArray(ary));
         
-        RubyParser.createParser(runtime, mASN1);
+        /* Header must be created before Parser, since Parser references the Header class */
         RubyHeader.createHeader(runtime, mASN1);
+        RubyParser.createParser(runtime, mASN1);
         RubyTemplate.createTemplate(runtime, mASN1);
     }    
 }

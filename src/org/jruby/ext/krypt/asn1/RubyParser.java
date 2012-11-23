@@ -57,9 +57,14 @@ public class RubyParser extends RubyObject {
         }
     };
     
+    private static RubyClass cHeader;
+    
     public static void createParser(Ruby runtime, RubyModule mASN1) {
         mASN1.defineClassUnder("Parser", runtime.getObject(), PARSER_ALLOCATOR)
              .defineAnnotatedMethods(RubyParser.class);
+        cHeader = ((RubyModule)runtime.getModule("Krypt")
+                                           .getConstant("ASN1"))
+                                           .getClass("Header");
     }
     
     private final impl.krypt.asn1.Parser parser;
@@ -80,11 +85,7 @@ public class RubyParser extends RubyObject {
     public IRubyObject next(ThreadContext ctx, IRubyObject io) {
         Ruby runtime = ctx.getRuntime();
         InputStream in = asStream(runtime, io);
-        RubyClass headerClass = ((RubyModule)runtime.getModule("Krypt")
-                                                .getConstant("ASN1"))
-                                                .getClass("Header");
-        
-        return parseHeader(runtime, headerClass, in);
+        return parseHeader(runtime, cHeader, in);
     }
     
     private IRubyObject parseHeader(Ruby runtime, RubyClass headerClass, InputStream in) {
