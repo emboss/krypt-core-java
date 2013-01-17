@@ -6,7 +6,7 @@ require 'ant'
 KRYPT_HOME = '../krypt'
 
 # TODO: update
-MANIFEST = FileList["Rakefile", "Manifest.txt", "README.rdoc", "License.txt", "lib/kryptcore.jar", "lib/**/*", "spec/**/*"]
+MANIFEST = FileList["Rakefile", "Manifest.txt", "README.rdoc", "License.txt", "lib/**/*", "spec/**/*"]
 File.open("Manifest.txt", "w") {|f| MANIFEST.each {|n| f.puts n } }
 
 task :default => [:build, :spec]

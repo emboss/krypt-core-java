@@ -1,4 +1,4 @@
-asn1pull-java is distributed under the same license as JRuby (http://www.jruby.org/).
+krypt-core-java is distributed under the same license as JRuby (http://www.jruby.org/).
 
 Version: CPL 1.0/GPL 2.0/LGPL 2.1
 

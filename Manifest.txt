@@ -2,7 +2,6 @@ Rakefile
 Manifest.txt
 README.rdoc
 License.txt
-lib/kryptcore.jar
 lib/krypt
 lib/krypt-core.rb
 lib/krypt/core
