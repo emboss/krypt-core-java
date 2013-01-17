@@ -1,5 +1,5 @@
-version.target=1.5
-version.source=1.5
+version.target=1.6
+version.source=1.6
 # jruby.home=/path/to/a/jruby/install
 # set this to an alternate location to compile against a different jruby.jar
 # jruby.jar=${jruby.home}/lib/jruby.jar
