@@ -8,4 +8,5 @@ Gem::Specification.new do |s|
   s.files = ["Rakefile", "LICENSE", "README.rdoc", "Manifest.txt", "lib/kryptcore.jar"] + Dir.glob('{bin,lib,spec,test}/**/*')
   s.test_files = Dir.glob('test/**/test_*.rb')
   s.require_path = "lib"
+  s.license = 'MIT'
 end
