@@ -11,9 +11,9 @@
 * implied. See the License for the specific language governing
 * rights and limitations under the License.
 *
-* Copyright (C) 2011 
+* Copyright (C) 2011-2013
 * Hiroshi Nakamura <nahi@ruby-lang.org>
-* Martin Bosslet <Martin.Bosslet@googlemail.com>
+* Martin Bosslet <Martin.Bosslet@gmail.com>
 *
 * Alternatively, the contents of this file may be used under the terms of
 * either of the GNU General Public License Version 2 or later (the "GPL"),
@@ -33,7 +33,7 @@ import java.security.NoSuchAlgorithmException;
 
 /**
  * 
- * @author <a href="mailto:Martin.Bosslet@googlemail.com">Martin Bosslet</a>
+ * @author <a href="mailto:Martin.Bosslet@gmail.com">Martin Bosslet</a>
  */
 public interface KryptProvider {
     
