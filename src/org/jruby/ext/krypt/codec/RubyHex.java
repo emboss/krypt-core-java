@@ -30,6 +30,7 @@ package org.jruby.ext.krypt.codec;
 import org.jruby.Ruby;
 import org.jruby.RubyClass;
 import org.jruby.RubyModule;
+import org.jruby.RubyString;
 import org.jruby.anno.JRubyMethod;
 import org.jruby.ext.krypt.Errors;
 import org.jruby.ext.krypt.Hex;
@@ -49,8 +50,8 @@ public class RubyHex {
     public static IRubyObject encode(ThreadContext ctx, IRubyObject recv, IRubyObject data) {
         try {
             byte[] bytes = data.convertToString().getBytes();
-            String encoded = Hex.encodeAsString(bytes);
-            return ctx.getRuntime().newString(encoded);
+            byte[] encoded = Hex.encode(bytes);
+            return RubyString.newUsAsciiStringNoCopy(ctx.getRuntime(), new ByteList(encoded, false));
         } catch (RuntimeException ex) {
             throw Errors.newHexError(ctx.getRuntime(), ex.getMessage());
         }

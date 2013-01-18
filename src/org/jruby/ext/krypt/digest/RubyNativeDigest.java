@@ -32,6 +32,7 @@ import org.jruby.RubyClass;
 import org.jruby.RubyModule;
 import org.jruby.RubyNumeric;
 import org.jruby.RubyObject;
+import org.jruby.RubyString;
 import org.jruby.anno.JRubyMethod;
 import org.jruby.ext.krypt.Errors;
 import org.jruby.ext.krypt.Hex;
@@ -85,7 +86,8 @@ public class RubyNativeDigest extends RubyObject {
     @JRubyMethod(optional=1)
     public IRubyObject hexdigest(ThreadContext ctx, IRubyObject[] args) {
         IRubyObject result = digest(ctx, args);
-        return ctx.getRuntime().newString(Hex.encodeAsString(result.asString().getBytes()));
+        byte[] encoded = Hex.encode(result.asString().getBytes());
+        return RubyString.newUsAsciiStringNoCopy(ctx.getRuntime(), new ByteList(encoded, false));
     }
     
     @JRubyMethod

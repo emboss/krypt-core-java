@@ -62,14 +62,6 @@ public class Hex {
         return ret;
     }
     
-    public static String encodeAsString(byte[] bytes) {
-        try {
-            return new String(encode(bytes), "US-ASCII");
-        } catch (UnsupportedEncodingException ex) {
-            throw new RuntimeException(ex);
-        }
-    }
-    
     public static byte[] decode(byte[] bytes) {
         if (bytes == null) throw new NullPointerException("bytes");
         if (bytes.length % 2 != 0) throw new IllegalArgumentException("Hex data length must be a multiple of 2");
