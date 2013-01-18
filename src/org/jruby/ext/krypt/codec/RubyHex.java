@@ -49,8 +49,8 @@ public class RubyHex {
     public static IRubyObject encode(ThreadContext ctx, IRubyObject recv, IRubyObject data) {
         try {
             byte[] bytes = data.convertToString().getBytes();
-            byte[] encoded = Hex.encode(bytes);
-            return ctx.getRuntime().newString(new ByteList(encoded, false));
+            String encoded = Hex.encodeAsString(bytes);
+            return ctx.getRuntime().newString(encoded);
         } catch (RuntimeException ex) {
             throw Errors.newHexError(ctx.getRuntime(), ex.getMessage());
         }
