@@ -27,7 +27,6 @@
  */
 package org.jruby.ext.krypt.codec;
 
-import com.sun.org.apache.xerces.internal.xs.datatypes.ByteList;
 import java.io.IOException;
 import org.jruby.Ruby;
 import org.jruby.RubyClass;
@@ -39,6 +38,7 @@ import org.jruby.ext.krypt.Base64;
 import org.jruby.ext.krypt.Errors;
 import org.jruby.runtime.ThreadContext;
 import org.jruby.runtime.builtin.IRubyObject;
+import org.jruby.util.ByteList;
 
 /**
  * 
