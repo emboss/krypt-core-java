@@ -59,6 +59,10 @@ public class Errors {
         return newError(rt, "Krypt::Hex::HexError", message);
     }
     
+    public static RaiseException newBase64Error(Ruby rt, String message) {
+        return newError(rt, "Krypt::Base64::Base64Error", message);
+    }
+    
     public static RaiseException newDigestError(Ruby rt, String message) {
         return newError(rt, "Krypt::Digest::DigestError", message);
     }
