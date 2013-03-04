@@ -16,6 +16,7 @@ doc
 tmp
 .classpath
 .project
+*.gem
 *.class
 *.swp
 *.swo

@@ -39,6 +39,10 @@ public class Errors {
    
     private Errors() { }
     
+    public static RaiseException newKryptError(Ruby rt, String message) {
+        return newError(rt, "Krypt::Error", message);
+    }
+    
     public static RaiseException newParseError(Ruby rt, String message) {
         return newError(rt, "Krypt::ASN1::ParseError", message);
     }

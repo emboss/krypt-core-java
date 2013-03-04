@@ -35,6 +35,7 @@ import org.jruby.ext.krypt.asn1.RubyPem;
 import org.jruby.ext.krypt.codec.RubyBase64;
 import org.jruby.ext.krypt.codec.RubyHex;
 import org.jruby.ext.krypt.digest.RubyNativeDigest;
+import org.jruby.ext.krypt.helper.RubyHelper;
 import org.jruby.ext.krypt.provider.RubyNativeProvider;
 
 /**
@@ -46,6 +47,8 @@ public class KryptCoreService {
     public static void create(Ruby runtime) {
         RubyModule krypt = runtime.getOrCreateModule("Krypt");
         RubyClass kryptError = krypt.getClass("Error");
+        
+        RubyHelper.createHelper(runtime, krypt);
         
         RubyAsn1.createAsn1(runtime, krypt, kryptError);
         RubyPem.createPem(runtime, krypt, kryptError);
