@@ -37,3 +37,9 @@ end
 require 'kryptcore.jar'
 require 'krypt-provider-jdk'
 
+begin
+  jdk = Krypt::Provider::JDK.new
+  Krypt::Provider.register(jdk)
+end
+
+

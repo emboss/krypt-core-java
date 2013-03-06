@@ -53,13 +53,22 @@ public class RubyNativeProvider extends RubyObject {
         mDigest = (RubyModule)mKrypt.getConstant("Digest");
     }
     
+    public static RubyClass getRubyClass() {
+        return cNativeProvider;
+    }
+    
     private final KryptProvider provider;
     
-    public RubyNativeProvider(Ruby runtime, KryptProvider provider) {
-        super(runtime, cNativeProvider);
+    protected RubyNativeProvider(Ruby runtime, RubyClass type, KryptProvider provider) {
+        super(runtime, type);
         if (provider == null) throw new NullPointerException();
     
         this.provider = provider;
+    }
+    
+    @JRubyMethod
+    public IRubyObject name(ThreadContext ctx) {
+        return ctx.getRuntime().newString(provider.getName());
     }
     
     @JRubyMethod(required = 1, rest = true)
@@ -70,6 +79,13 @@ public class RubyNativeProvider extends RubyObject {
             return newDigest(ctx, stripFirst(args));
         }
         
+        return ctx.getRuntime().getNil();
+    }
+    
+    @JRubyMethod
+    public IRubyObject finalize(ThreadContext ctx) {
+        /* do nothing */
+        provider.cleanUp();
         return ctx.getRuntime().getNil();
     }
     

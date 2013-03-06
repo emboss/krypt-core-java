@@ -27,8 +27,6 @@
  */
 package org.jruby.ext.krypt.provider;
 
-import java.security.NoSuchAlgorithmException;
-
 /**
  * 
  * @author <a href="mailto:Martin.Bosslet@gmail.com">Martin Bosslet</a>
@@ -36,6 +34,7 @@ import java.security.NoSuchAlgorithmException;
 public interface KryptProvider {
     
     public String getName();
+    public void cleanUp();
     
     public Digest newDigestByName(String name);
     public Digest newDigestByOid(String oid);
