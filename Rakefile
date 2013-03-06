@@ -6,16 +6,16 @@ require 'ant'
 KRYPT_HOME = '../krypt'
 
 # TODO: update
-MANIFEST = FileList["Rakefile", "Manifest.txt", "README.rdoc", "LICENSE", "lib/**/*", "spec/**/*"]
+MANIFEST = FileList["Rakefile", "Manifest.txt", "README.rdoc", "LICENSE", "lib/**/*"]
 File.open("Manifest.txt", "w") {|f| MANIFEST.each {|n| f.puts n } }
 
 task :default => [:build, :spec]
 
-file "lib/kryptcore.jar" => :build
+file "lib/krypt/kryptcore.jar" => :build
 
 desc "Delete artifact files"
 task :clean do
-  rm_f FileList['lib/kryptcore.jar']
+  rm_f FileList['lib/krypt/kryptcore.jar']
   ant :clean
 end
 

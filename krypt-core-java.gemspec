@@ -12,8 +12,7 @@ Gem::Specification.new do |s|
   s.description = 'Java implementation of the krypt-core API'
   s.required_ruby_version     = '>= 1.9.3'
 
-  s.files = ["Rakefile", "LICENSE", "README.rdoc", "Manifest.txt", "lib/kryptcore.jar"] + Dir.glob('{bin,lib,spec,test}/**/*')
-  s.test_files = Dir.glob('test/**/test_*.rb')
+  s.files = %w(Rakefile LICENSE README.rdoc Manifest.txt) + Dir.glob('lib/**/*')
   s.require_path = "lib"
   s.license = 'MIT'
 

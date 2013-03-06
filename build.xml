@@ -1,5 +1,5 @@
 <?xml version="1.0" encoding="UTF-8"?>
-<project basedir="." default="build" name="jkrypt">
+<project basedir="." default="build" name="kryptcore">
   <property environment="env"/>
   <property file="build.properties"/>
 
@@ -7,7 +7,7 @@
   <property name="target" value="build"/>
   <property name="target.classes" value="${target}/classes"/>
   <property name="target.classes.test" value="${target}/test-classes"/>
-  <property name="lib.dir" value="lib"/>
+  <property name="lib.dir" value="lib/"/>
   <property name="test.results.dir" value="${target}/test-results"/>
   <property name="jruby.jar" value="${jruby.home}/lib/jruby.jar"/>
   <property name="version.source" value="1.5"/>

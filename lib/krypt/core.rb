@@ -35,7 +35,7 @@ unless defined? JRUBY_VERSION
 end
 
 require 'kryptcore.jar'
-require 'krypt-provider-jdk'
+require 'krypt/provider/jdk'
 
 begin
   jdk = Krypt::Provider::JDK.new

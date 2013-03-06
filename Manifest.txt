@@ -3,11 +3,5 @@ Manifest.txt
 README.rdoc
 LICENSE
 lib/krypt
-lib/krypt-core.rb
-lib/krypt/core
-lib/krypt/core/version.rb
+lib/krypt/core.rb
 lib/kryptcore.jar
-spec/README
-spec/java
-spec/java/parser_factory_spec.rb
-spec/java/pull_header_parser_spec.rb

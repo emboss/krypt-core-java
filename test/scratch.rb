@@ -3,7 +3,7 @@
 require 'krypt'
 require 'benchmark'
 require 'openssl'
-require 'krypt-provider-openssl'
+require 'krypt/provider/openssl'
 
 iter  = 4096
 key   = "secretkey"
